@@ -1,0 +1,75 @@
+import { FastifyRequest, FastifyReply } from 'fastify';
+import { db } from '../db/index';
+import { sessions, users } from '../db/schema';
+import { eq } from 'drizzle-orm';
+
+export interface AuthenticatedRequest extends FastifyRequest {
+    user?: {
+        id: string;
+        email: string;
+        name: string;
+        role: 'farmer' | 'buyer';
+        phone: string;
+        location: string;
+        deliveryLocation: string | null;
+    };
+}
+
+export async function authenticate(
+    request: AuthenticatedRequest,
+    reply: FastifyReply
+): Promise<void> {
+    const sessionToken = request.headers.authorization?.replace('Bearer ', '');
+
+    if (!sessionToken) {
+        reply.code(401).send({ error: 'Unauthorized' });
+        return;
+    }
+
+    try {
+        // Find session
+        const [session] = await db
+            .select()
+            .from(sessions)
+            .where(eq(sessions.id, sessionToken))
+            .limit(1);
+
+        if (!session) {
+            reply.code(401).send({ error: 'Invalid session' });
+            return;
+        }
+
+        // Check if session expired
+        if (new Date(session.expiresAt) < new Date()) {
+            // Delete expired session
+            await db.delete(sessions).where(eq(sessions.id, sessionToken));
+            reply.code(401).send({ error: 'Session expired' });
+            return;
+        }
+
+        // Get user
+        const [user] = await db
+            .select()
+            .from(users)
+            .where(eq(users.id, session.userId))
+            .limit(1);
+
+        if (!user) {
+            reply.code(401).send({ error: 'User not found' });
+            return;
+        }
+
+        // Attach user to request
+        request.user = {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            phone: user.phone,
+            location: user.location,
+            deliveryLocation: user.deliveryLocation
+        };
+    } catch (error) {
+        reply.code(500).send({ error: 'Authentication failed' });
+    }
+}

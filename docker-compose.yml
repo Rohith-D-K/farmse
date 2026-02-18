@@ -1,0 +1,45 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      PORT: "3000"
+      DB_PATH: /data/farmse.db
+      # Allow any origin in Docker (nginx handles CORS at the edge)
+      ALLOWED_ORIGIN: "*"
+    volumes:
+      - sqlite_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:3000/health" ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # In Docker, the frontend calls /api/* which nginx proxies to backend.
+        # Leave VITE_API_URL empty so the frontend uses relative URLs.
+        VITE_API_URL: ""
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - frontend
+    restart: unless-stopped
+
+volumes:
+  sqlite_data:
