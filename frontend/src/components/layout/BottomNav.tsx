@@ -1,12 +1,15 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCart } from '../../contexts/CartContext';
 import { Home, ShoppingBag, User, Store, PlusCircle, ListOrdered } from 'lucide-react';
 
 export const BottomNav: React.FC = () => {
     const { user } = useAuth();
+    const { getTotalItems } = useCart();
     const navigate = useNavigate();
     const location = useLocation();
+    const cartItemCount = getTotalItems();
 
     // Don't show on auth pages or if no user
     if (!user || ['/login', '/register'].includes(location.pathname)) return null;
@@ -40,7 +43,11 @@ export const BottomNav: React.FC = () => {
                     */}
                     <button onClick={() => navigate('/checkout')} className={navItemClass(isActive('/checkout'))}>
                         <div className="relative">
-                            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                            {cartItemCount > 0 && (
+                                <span className="absolute -top-2 -right-2 min-w-5 h-5 px-1 bg-green-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                                    {cartItemCount}
+                                </span>
+                            )}
                             <div className="w-6 h-6 border-2 border-current rounded-md flex items-center justify-center text-xs font-bold">₹</div>
                         </div>
                         <span className={labelClass}>Cart</span>

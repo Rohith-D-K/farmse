@@ -27,12 +27,19 @@ async function apiRequest<T>(
 ): Promise<T> {
     const token = getSessionToken();
 
-    const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-    };
+    const headers: Record<string, string> = {};
 
     if (options.headers) {
         Object.assign(headers, options.headers);
+    }
+
+    const hasBody = options.body !== undefined && options.body !== null;
+    const hasExplicitContentType = Object.keys(headers).some(
+        key => key.toLowerCase() === 'content-type'
+    );
+
+    if (hasBody && !hasExplicitContentType) {
+        headers['Content-Type'] = 'application/json';
     }
 
     if (token) {

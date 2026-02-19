@@ -16,7 +16,7 @@ export const Dashboard: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-green-50 p-4 sm:p-6 lg:p-8">
+        <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
             <div className="max-w-4xl mx-auto space-y-6">
                 {/* Header */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -37,6 +37,21 @@ export const Dashboard: React.FC = () => {
                     >
                         Logout
                     </button>
+                </div>
+
+                <div className="relative rounded-2xl overflow-hidden border border-gray-100 shadow-sm min-h-[200px]">
+                    <img src="/produce/banner.avif" alt="Fresh produce" className="absolute inset-0 w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-gray-900/75 via-gray-900/55 to-transparent" />
+                    <div className="relative z-10 p-6 text-white max-w-md">
+                        <h2 className="text-2xl font-bold">Fresh Fruits & Vegetables</h2>
+                        <p className="text-sm text-gray-100 mt-2">Browse today’s local harvest and order directly from trusted nearby farms.</p>
+                        <button
+                            onClick={() => navigate('/marketplace')}
+                            className="mt-4 px-4 py-2 bg-white text-gray-900 rounded-lg text-sm font-semibold hover:bg-gray-100 transition-colors"
+                        >
+                            Shop Now
+                        </button>
+                    </div>
                 </div>
 
                 {/* Quick Actions */}

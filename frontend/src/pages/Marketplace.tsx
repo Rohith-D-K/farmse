@@ -90,17 +90,20 @@ export const Marketplace: React.FC = () => {
             </div>
 
             {/* Promotional Banner */}
-            <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
-                <div className="relative z-10">
+            <div className="relative rounded-2xl overflow-hidden shadow-lg border border-gray-100 min-h-[190px]">
+                <img
+                    src="/produce/banner.avif"
+                    alt="Fresh produce"
+                    className="absolute inset-0 w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-gray-900/75 via-gray-900/55 to-gray-900/25" />
+                <div className="relative z-10 p-6 text-white">
                     <h2 className="text-2xl font-bold mb-2">Fresh from Farm</h2>
-                    <p className="text-green-100 mb-4 text-sm max-w-[200px]">Get organic produce delivered directly to your doorstep.</p>
-                    <button className="bg-white text-green-700 px-4 py-2 rounded-xl text-xs font-bold shadow-sm active:scale-95 transition-all">
-                        Order Now
+                    <p className="text-gray-100 mb-4 text-sm max-w-[320px]">Handpicked fruits and vegetables sourced directly from local farmers.</p>
+                    <button className="bg-white text-gray-900 px-4 py-2 rounded-xl text-xs font-bold shadow-sm active:scale-95 transition-all">
+                        Explore Produce
                     </button>
                 </div>
-                {/* Decorative Circles */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
-                <div className="absolute bottom-0 right-10 w-24 h-24 bg-yellow-400/20 rounded-full blur-xl"></div>
             </div>
 
             {/* Categories */}

@@ -1,7 +1,9 @@
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { Minus, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getImageForCrop } from '../../utils/productImages';
+import { useCart } from '../../contexts/CartContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ProductCardProps {
     id: string;
@@ -14,6 +16,34 @@ interface ProductCardProps {
 
 export const ProductCard: React.FC<ProductCardProps> = ({ id, cropName, price, quantity, location, image }) => {
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const { getItemQuantity, addToCart, updateQuantity } = useCart();
+    const cartQuantity = getItemQuantity(id);
+
+    const handleAddClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.stopPropagation();
+
+        if (quantity === 0) return;
+
+        if (user?.role === 'buyer') {
+            addToCart({ id, cropName, price, quantity, location, image }, 1);
+            return;
+        }
+
+        navigate(`/product/${id}`);
+    };
+
+    const handleIncrease = (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.stopPropagation();
+        if (quantity === 0 || user?.role !== 'buyer') return;
+        addToCart({ id, cropName, price, quantity, location, image }, 1);
+    };
+
+    const handleDecrease = (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.stopPropagation();
+        if (user?.role !== 'buyer') return;
+        updateQuantity(id, cartQuantity - 1);
+    };
 
     return (
         <div
@@ -46,9 +76,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ id, cropName, price, q
             </div>
 
             {/* Content */}
-            <div className="p-4">
-                <div className="flex justify-between items-start mb-1">
-                    <h3 className="font-bold text-gray-900 text-lg leading-tight group-hover:text-green-600 transition-colors">
+            <div className="p-4 flex flex-col gap-3 min-h-[146px]">
+                <div className="flex justify-between items-start gap-2">
+                    <h3 className="font-bold text-gray-900 text-lg leading-tight group-hover:text-green-600 transition-colors line-clamp-1">
                         {cropName}
                     </h3>
                     <div className="flex flex-col items-end">
@@ -57,24 +87,43 @@ export const ProductCard: React.FC<ProductCardProps> = ({ id, cropName, price, q
                     </div>
                 </div>
 
-                <div className="flex items-center text-gray-500 text-xs mb-4">
-                    <span className="truncate max-w-[120px]">{location}</span>
-                    <span className="mx-1">•</span>
-                    <span>{quantity}kg left</span>
+                <div className="flex items-center justify-between text-gray-500 text-xs min-h-[18px] gap-2">
+                    <span className="truncate">{location}</span>
+                    <span className="whitespace-nowrap">{quantity}kg left</span>
                 </div>
 
-                {/* Add Button */}
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        if (quantity > 0) navigate(`/product/${id}`);
-                    }}
-                    disabled={quantity === 0}
-                    className="w-full py-2.5 bg-green-50 text-green-700 font-bold rounded-xl text-sm hover:bg-green-600 hover:text-white active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 group/btn"
-                >
-                    <Plus className="w-4 h-4 transition-transform group-hover/btn:rotate-90" />
-                    Add
-                </button>
+                {user?.role === 'buyer' && cartQuantity > 0 ? (
+                    <div
+                        className="mt-auto w-full h-10 bg-green-50 rounded-xl border border-green-100 flex items-center"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={handleDecrease}
+                            className="h-full w-10 flex items-center justify-center text-green-700 hover:bg-green-100 rounded-l-xl transition-colors"
+                            aria-label="Decrease quantity"
+                        >
+                            <Minus className="w-4 h-4" />
+                        </button>
+                        <div className="flex-1 text-center font-bold text-sm text-green-800">{cartQuantity}</div>
+                        <button
+                            onClick={handleIncrease}
+                            disabled={cartQuantity >= quantity}
+                            className="h-full w-10 flex items-center justify-center text-green-700 hover:bg-green-100 rounded-r-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            aria-label="Increase quantity"
+                        >
+                            <Plus className="w-4 h-4" />
+                        </button>
+                    </div>
+                ) : (
+                    <button
+                        onClick={handleAddClick}
+                        disabled={quantity === 0}
+                        className="mt-auto w-full py-2.5 bg-green-50 text-green-700 font-bold rounded-xl text-sm hover:bg-green-600 hover:text-white active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 group/btn"
+                    >
+                        <Plus className="w-4 h-4 transition-transform group-hover/btn:rotate-90" />
+                        Add
+                    </button>
+                )}
             </div>
         </div>
     );

@@ -32,7 +32,8 @@ const corsOrigin = allowedOrigin === '*'
 
 await fastify.register(cors, {
     origin: corsOrigin,
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
 });
 
 // Health check route

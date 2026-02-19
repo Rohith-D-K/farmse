@@ -1,31 +1,62 @@
 import { FastifyInstance } from 'fastify';
 import { db } from '../db/index';
 import { orders, products } from '../db/schema';
-import { eq, or, and } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { generateId } from '../utils/auth';
 
 export async function orderRoutes(fastify: FastifyInstance) {
+    const attachProductDetails = async (rawOrders: any[]) => {
+        if (rawOrders.length === 0) return [];
+
+        const productIds = [...new Set(rawOrders.map(order => order.productId))];
+        const productRows = await db
+            .select({
+                id: products.id,
+                cropName: products.cropName,
+                image: products.image,
+                location: products.location,
+                price: products.price
+            })
+            .from(products)
+            .where(inArray(products.id, productIds));
+
+        const productMap = new Map(productRows.map(product => [product.id, product]));
+
+        return rawOrders.map(order => {
+            const product = productMap.get(order.productId);
+            return {
+                ...order,
+                cropName: product?.cropName ?? 'Unknown Product',
+                productImage: product?.image ?? '',
+                productLocation: product?.location ?? '',
+                productUnitPrice: product?.price ?? null
+            };
+        });
+    };
+
     // Get user's orders
     fastify.get('/api/orders', {
         preHandler: authenticate
     }, async (request: AuthenticatedRequest, reply) => {
         try {
-            let userOrders;
+            let rawOrders;
 
             if (request.user!.role === 'farmer') {
                 // Get orders for farmer's products
-                userOrders = await db
+                rawOrders = await db
                     .select()
                     .from(orders)
                     .where(eq(orders.farmerId, request.user!.id));
             } else {
                 // Get buyer's orders
-                userOrders = await db
+                rawOrders = await db
                     .select()
                     .from(orders)
                     .where(eq(orders.buyerId, request.user!.id));
             }
+
+            const userOrders = await attachProductDetails(rawOrders);
 
             return reply.send(userOrders);
         } catch (error: any) {

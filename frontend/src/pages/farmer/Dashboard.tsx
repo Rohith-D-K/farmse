@@ -16,6 +16,8 @@ interface Product {
 interface Order {
     id: string;
     productId: string;
+    cropName: string;
+    productImage: string;
     quantity: number;
     totalPrice: number;
     deliveryMethod: string; // buyer_pickup, farmer_delivery, local_transport
@@ -168,7 +170,8 @@ export const Dashboard: React.FC = () => {
                         {incomingOrders.map((order) => (
                             <div key={order.id} className="card-premium p-5 border-l-4 border-l-yellow-500">
                                 <div className="flex justify-between items-start mb-3">
-                                    <div>
+                                    <div className="min-w-0">
+                                        <p className="font-semibold text-gray-900 truncate">{order.cropName}</p>
                                         <p className="font-bold text-gray-900">Order #{order.id.slice(0, 6)}</p>
                                         <p className="text-xs text-gray-500">{new Date(order.createdAt).toLocaleDateString()}</p>
                                     </div>
@@ -176,6 +179,12 @@ export const Dashboard: React.FC = () => {
                                         {order.orderStatus}
                                     </span>
                                 </div>
+
+                                {order.productImage && (
+                                    <div className="mb-3 w-full h-28 rounded-lg overflow-hidden border border-gray-100">
+                                        <img src={order.productImage} alt={order.cropName} className="w-full h-full object-cover" />
+                                    </div>
+                                )}
 
                                 <div className="space-y-2 mb-4">
                                     <div className="flex justify-between text-sm">

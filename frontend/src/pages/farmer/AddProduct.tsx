@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../lib/api';
 import { ArrowLeft, Upload, Loader2, MapPin, DollarSign, Package } from 'lucide-react';
+import { getImageForCrop } from '../../utils/productImages';
 
 export const AddProduct: React.FC = () => {
     const { user } = useAuth();
@@ -17,6 +18,8 @@ export const AddProduct: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
+    const resolvedImage = formData.image.trim() || getImageForCrop(formData.cropName || 'All');
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
@@ -28,7 +31,7 @@ export const AddProduct: React.FC = () => {
                 price: parseFloat(formData.price),
                 quantity: parseInt(formData.quantity),
                 location: formData.location,
-                image: formData.image
+                image: resolvedImage
             });
             navigate('/farmer/dashboard');
         } catch (err: any) {
@@ -62,29 +65,30 @@ export const AddProduct: React.FC = () => {
                         <div className="relative aspect-video rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center overflow-hidden hover:bg-gray-100 transition-colors group">
                             {formData.image ? (
                                 <img
-                                    src={formData.image}
+                                    src={resolvedImage}
                                     alt="Preview"
                                     className="w-full h-full object-cover"
-                                    onError={(e) => (e.currentTarget.style.display = 'none')}
+                                    onError={(e) => {
+                                        e.currentTarget.src = getImageForCrop(formData.cropName || 'All');
+                                    }}
                                 />
                             ) : (
                                 <div className="text-center p-6">
                                     <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-gray-300 transition-colors">
                                         <Upload className="w-6 h-6 text-gray-500" />
                                     </div>
-                                    <p className="text-sm font-medium text-gray-900">Enter Image URL below</p>
-                                    <p className="text-xs text-gray-500">Preview will appear here</p>
+                                    <p className="text-sm font-medium text-gray-900">Image is auto-selected from crop name</p>
+                                    <p className="text-xs text-gray-500">Optionally override with a custom path</p>
                                 </div>
                             )}
                         </div>
                         <input
-                            type="url"
+                            type="text"
                             name="image"
                             value={formData.image}
                             onChange={handleChange}
-                            placeholder="https://example.com/image.jpg"
+                            placeholder="Optional: /produce/tomato.jpg or https://..."
                             className="input-field text-sm py-2"
-                            required
                         />
                     </div>
 

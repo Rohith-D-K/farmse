@@ -7,6 +7,9 @@ import { Package, Truck, CheckCircle, Clock } from 'lucide-react';
 interface Order {
     id: string;
     productId: string;
+    cropName: string;
+    productImage: string;
+    productLocation: string;
     quantity: number;
     totalPrice: number;
     deliveryMethod: string;
@@ -85,11 +88,18 @@ export const Orders: React.FC = () => {
                     orders.map((order) => (
                         <div key={order.id} className="card-premium p-5 hover:shadow-md transition-shadow">
                             <div className="flex justify-between items-start mb-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center border border-gray-100">
-                                        <Package className="w-5 h-5 text-gray-600" />
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-12 h-12 rounded-xl overflow-hidden border border-gray-100 bg-gray-50 flex-shrink-0">
+                                        {order.productImage ? (
+                                            <img src={order.productImage} alt={order.cropName} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center">
+                                                <Package className="w-5 h-5 text-gray-500" />
+                                            </div>
+                                        )}
                                     </div>
-                                    <div>
+                                    <div className="min-w-0">
+                                        <p className="font-semibold text-gray-900 truncate">{order.cropName}</p>
                                         <h3 className="font-bold text-gray-900">Order #{order.id.substring(0, 8)}</h3>
                                         <p className="text-xs text-gray-500">
                                             {new Date(order.createdAt).toLocaleDateString('en-IN', {
@@ -106,7 +116,8 @@ export const Orders: React.FC = () => {
 
                             <div className="flex justify-between items-center py-3 border-t border-dashed border-gray-200">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-900">{order.quantity} kg Crop</p>
+                                    <p className="text-sm font-medium text-gray-900">{order.quantity} kg {order.cropName}</p>
+                                    <p className="text-xs text-gray-500">{order.productLocation}</p>
                                     <p className="text-xs text-gray-500 capitalize">{order.deliveryMethod.replace('_', ' ')}</p>
                                 </div>
                                 <div className="text-right">
