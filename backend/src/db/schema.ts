@@ -9,8 +9,11 @@ export const users = sqliteTable('users', {
     name: text('name').notNull(),
     phone: text('phone').notNull(),
     location: text('location').notNull(),
-    role: text('role', { enum: ['farmer', 'buyer'] }).notNull(),
+    role: text('role', { enum: ['farmer', 'buyer', 'admin'] }).notNull(),
+    isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
     deliveryLocation: text('delivery_location'),
+    latitude: real('latitude'),
+    longitude: real('longitude'),
     createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
 });
 
@@ -38,7 +41,7 @@ export const orders = sqliteTable('orders', {
         enum: ['buyer_pickup', 'farmer_delivery', 'local_transport']
     }).notNull(),
     paymentMethod: text('payment_method', {
-        enum: ['upi', 'bank_transfer']
+        enum: ['upi', 'bank_transfer', 'cash_on_delivery']
     }).notNull(),
     paymentStatus: text('payment_status', {
         enum: ['pending', 'completed']
@@ -68,6 +71,22 @@ export const sessions = sqliteTable('sessions', {
     createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
 });
 
+// Help reports table (buyer support / scam reports)
+export const helpReports = sqliteTable('help_reports', {
+    id: text('id').primaryKey(),
+    reporterId: text('reporter_id').notNull().references(() => users.id),
+    reportedUserId: text('reported_user_id').references(() => users.id),
+    orderId: text('order_id').references(() => orders.id),
+    category: text('category', {
+        enum: ['scam', 'payment_issue', 'delivery_issue', 'other']
+    }).notNull(),
+    description: text('description').notNull(),
+    status: text('status', { enum: ['open', 'resolved'] }).notNull().default('open'),
+    adminNotes: text('admin_notes'),
+    createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+    resolvedAt: text('resolved_at')
+});
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -79,3 +98,5 @@ export type Review = typeof reviews.$inferSelect;
 export type NewReview = typeof reviews.$inferInsert;
 export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
+export type HelpReport = typeof helpReports.$inferSelect;
+export type NewHelpReport = typeof helpReports.$inferInsert;

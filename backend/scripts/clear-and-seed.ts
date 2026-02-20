@@ -1,5 +1,5 @@
 import { db } from '../src/db/index';
-import { users, products, orders, reviews, sessions } from '../src/db/schema';
+import { users, products, orders, reviews, sessions, helpReports } from '../src/db/schema';
 import { hashPassword, generateId } from '../src/utils/auth';
 
 async function clearAndSeedDatabase() {
@@ -8,6 +8,7 @@ async function clearAndSeedDatabase() {
     try {
         // Delete all data from tables (in correct order due to foreign keys)
         await db.delete(reviews);
+        await db.delete(helpReports);
         await db.delete(orders);
         await db.delete(products);
         await db.delete(sessions);
@@ -26,6 +27,7 @@ async function clearAndSeedDatabase() {
         const buyer1Id = generateId();
         const buyer2Id = generateId();
         const buyer3Id = generateId();
+        const adminId = generateId();
 
         await db.insert(users).values([
             {
@@ -36,7 +38,9 @@ async function clearAndSeedDatabase() {
                 phone: '+91 98765 43210',
                 location: 'Ludhiana, Punjab',
                 role: 'farmer',
-                deliveryLocation: null
+                deliveryLocation: null,
+                latitude: 30.901,
+                longitude: 75.8573
             },
             {
                 id: farmer2Id,
@@ -46,7 +50,9 @@ async function clearAndSeedDatabase() {
                 phone: '+91 98765 43211',
                 location: 'Anand, Gujarat',
                 role: 'farmer',
-                deliveryLocation: null
+                deliveryLocation: null,
+                latitude: 22.5645,
+                longitude: 72.9289
             },
             {
                 id: farmer3Id,
@@ -56,7 +62,9 @@ async function clearAndSeedDatabase() {
                 phone: '+91 98765 43212',
                 location: 'Karnal, Haryana',
                 role: 'farmer',
-                deliveryLocation: null
+                deliveryLocation: null,
+                latitude: 29.6857,
+                longitude: 76.9905
             },
             {
                 id: farmer4Id,
@@ -66,7 +74,9 @@ async function clearAndSeedDatabase() {
                 phone: '+91 98765 43215',
                 location: 'Mysuru, Karnataka',
                 role: 'farmer',
-                deliveryLocation: null
+                deliveryLocation: null,
+                latitude: 12.2958,
+                longitude: 76.6394
             },
             {
                 id: buyer1Id,
@@ -76,7 +86,9 @@ async function clearAndSeedDatabase() {
                 phone: '+91 98765 43213',
                 location: 'New Delhi',
                 role: 'buyer',
-                deliveryLocation: 'Connaught Place, New Delhi'
+                deliveryLocation: 'Connaught Place, New Delhi',
+                latitude: 28.6315,
+                longitude: 77.2167
             },
             {
                 id: buyer2Id,
@@ -86,7 +98,9 @@ async function clearAndSeedDatabase() {
                 phone: '+91 98765 43214',
                 location: 'Mumbai',
                 role: 'buyer',
-                deliveryLocation: 'Andheri East, Mumbai'
+                deliveryLocation: 'Andheri East, Mumbai',
+                latitude: 19.1136,
+                longitude: 72.8697
             },
             {
                 id: buyer3Id,
@@ -96,7 +110,22 @@ async function clearAndSeedDatabase() {
                 phone: '+91 98765 43216',
                 location: 'Bengaluru',
                 role: 'buyer',
-                deliveryLocation: 'Indiranagar, Bengaluru'
+                deliveryLocation: 'Indiranagar, Bengaluru',
+                latitude: 12.9716,
+                longitude: 77.5946
+            },
+            {
+                id: adminId,
+                email: 'admin@farmse.local',
+                passwordHash: defaultPasswordHash,
+                name: 'FarmSe Admin',
+                phone: '+91 90000 00000',
+                location: 'HQ',
+                role: 'admin',
+                isActive: true,
+                deliveryLocation: null,
+                latitude: null,
+                longitude: null
             }
         ]);
 
@@ -413,7 +442,7 @@ async function clearAndSeedDatabase() {
 
         console.log('✅ Reviews created!');
         console.log('\n📊 Database seeded successfully!');
-        console.log('   - 7 users (4 farmers, 3 buyers)');
+        console.log('   - 8 users (4 farmers, 3 buyers, 1 admin)');
         console.log('   - 21 products (fruits + vegetables from mini assets)');
         console.log('   - 5 orders with mixed statuses');
         console.log('   - 2 reviews\n');
@@ -422,6 +451,7 @@ async function clearAndSeedDatabase() {
         console.log('   Farmer: farmer2@example.com');
         console.log('   Buyer:  buyer1@example.com');
         console.log('   Buyer:  buyer2@example.com\n');
+        console.log('   Admin:  admin@farmse.local\n');
 
     } catch (error: any) {
         console.error('❌ Seeding failed:', error.message);

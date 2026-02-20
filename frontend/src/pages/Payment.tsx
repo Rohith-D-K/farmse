@@ -21,7 +21,7 @@ export const Payment: React.FC = () => {
         location: state.product.location
     }] : []);
 
-    const [paymentMethod, setPaymentMethod] = useState<'upi' | 'bank_transfer'>('upi');
+    const [paymentMethod, setPaymentMethod] = useState<'upi' | 'bank_transfer' | 'cash_on_delivery'>('upi');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -169,6 +169,26 @@ export const Payment: React.FC = () => {
                                         <span className="block text-sm text-gray-500">Direct transfer to farmer's account</span>
                                     </div>
                                 </label>
+
+                                <label
+                                    className={`relative flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === 'cash_on_delivery'
+                                        ? 'border-green-500 bg-green-50'
+                                        : 'border-gray-200 hover:border-green-200'
+                                        }`}
+                                >
+                                    <input
+                                        type="radio"
+                                        name="paymentMethod"
+                                        value="cash_on_delivery"
+                                        checked={paymentMethod === 'cash_on_delivery'}
+                                        onChange={() => setPaymentMethod('cash_on_delivery')}
+                                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300"
+                                    />
+                                    <div className="ml-4">
+                                        <span className="block text-sm font-bold text-gray-900">💵 Cash on Delivery</span>
+                                        <span className="block text-sm text-gray-500">Pay with cash when your order is delivered</span>
+                                    </div>
+                                </label>
                             </div>
                         </div>
 
@@ -182,7 +202,7 @@ export const Payment: React.FC = () => {
                             disabled={loading}
                             className="w-full py-4 px-6 bg-green-600 text-white rounded-xl text-lg font-bold hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-200 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {loading ? 'Processing Order...' : `Pay ₹${totalPrice.toFixed(2)}`}
+                            {loading ? 'Processing Order...' : `${paymentMethod === 'cash_on_delivery' ? 'Place Order' : 'Pay'} ₹${totalPrice.toFixed(2)}`}
                         </button>
                     </div>
                 </div>

@@ -20,7 +20,9 @@ export const Login: React.FC = () => {
             const user = await login(email, password);
 
             // Redirect based on role
-            if (user.role === 'farmer') {
+            if (user.role === 'admin') {
+                navigate('/admin/dashboard');
+            } else if (user.role === 'farmer') {
                 navigate('/farmer/dashboard');
             } else {
                 navigate('/marketplace');

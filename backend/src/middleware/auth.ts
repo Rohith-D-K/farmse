@@ -8,10 +8,13 @@ export interface AuthenticatedRequest extends FastifyRequest {
         id: string;
         email: string;
         name: string;
-        role: 'farmer' | 'buyer';
+        role: 'farmer' | 'buyer' | 'admin';
+        isActive: boolean;
         phone: string;
         location: string;
         deliveryLocation: string | null;
+        latitude: number | null;
+        longitude: number | null;
     };
 }
 
@@ -59,15 +62,23 @@ export async function authenticate(
             return;
         }
 
+        if (!user.isActive) {
+            reply.code(403).send({ error: 'Your account is deactivated. Contact support.' });
+            return;
+        }
+
         // Attach user to request
         request.user = {
             id: user.id,
             email: user.email,
             name: user.name,
             role: user.role,
+            isActive: user.isActive,
             phone: user.phone,
             location: user.location,
-            deliveryLocation: user.deliveryLocation
+            deliveryLocation: user.deliveryLocation,
+            latitude: user.latitude,
+            longitude: user.longitude
         };
     } catch (error) {
         reply.code(500).send({ error: 'Authentication failed' });

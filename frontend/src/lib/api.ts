@@ -69,6 +69,8 @@ export const auth = {
         location: string;
         role: 'farmer' | 'buyer';
         deliveryLocation?: string;
+        latitude?: number;
+        longitude?: number;
     }) => {
         const result = await apiRequest<{ user: any; sessionToken: string }>(
             '/api/auth/register',
@@ -164,7 +166,7 @@ export const orders = {
         productId: string;
         quantity: number;
         deliveryMethod: 'buyer_pickup' | 'farmer_delivery' | 'local_transport';
-        paymentMethod: 'upi' | 'bank_transfer';
+        paymentMethod: 'upi' | 'bank_transfer' | 'cash_on_delivery';
     }) => {
         return apiRequest<any>('/api/orders', {
             method: 'POST',
@@ -188,6 +190,18 @@ export const orders = {
         return apiRequest<any>(`/api/orders/${id}/reject`, {
             method: 'PUT',
         });
+    },
+
+    getDistance: async (productId: string) => {
+        return apiRequest<{
+            productId: string;
+            distanceKm: number;
+            etaMinutes: number | null;
+            provider: 'ola' | 'haversine';
+            routePoints?: Array<{ latitude: number; longitude: number }>;
+            from: { latitude: number; longitude: number; label: string };
+            to: { latitude: number; longitude: number; label: string };
+        }>(`/api/orders/distance/${productId}`);
     },
 };
 
@@ -221,10 +235,74 @@ export const users = {
         phone: string;
         location: string;
         deliveryLocation?: string;
+        latitude?: number;
+        longitude?: number;
     }) => {
         return apiRequest<any>('/api/users/profile', {
             method: 'PUT',
             body: JSON.stringify(data),
+        });
+    },
+
+    updateLocation: async (data: { latitude: number; longitude: number }) => {
+        return apiRequest<{ message: string; latitude: number; longitude: number }>('/api/users/location', {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    },
+};
+
+// Help API
+export const help = {
+    createReport: async (data: {
+        reportedUserId?: string;
+        orderId?: string;
+        category: 'scam' | 'payment_issue' | 'delivery_issue' | 'other';
+        description: string;
+    }) => {
+        return apiRequest<any>('/api/help/reports', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+
+    getMyReports: async () => {
+        return apiRequest<any[]>('/api/help/my-reports');
+    },
+};
+
+// Admin API
+export const admin = {
+    getOverview: async () => {
+        return apiRequest<any>('/api/admin/overview');
+    },
+
+    getUsers: async () => {
+        return apiRequest<any[]>('/api/admin/users');
+    },
+
+    updateUserStatus: async (id: string, isActive: boolean) => {
+        return apiRequest<any>(`/api/admin/users/${id}/status`, {
+            method: 'PUT',
+            body: JSON.stringify({ isActive }),
+        });
+    },
+
+    updateUserRole: async (id: string, role: 'farmer' | 'buyer') => {
+        return apiRequest<any>(`/api/admin/users/${id}/role`, {
+            method: 'PUT',
+            body: JSON.stringify({ role }),
+        });
+    },
+
+    getReports: async () => {
+        return apiRequest<any[]>('/api/admin/reports');
+    },
+
+    resolveReport: async (id: string, adminNotes?: string) => {
+        return apiRequest<any>(`/api/admin/reports/${id}/resolve`, {
+            method: 'PUT',
+            body: JSON.stringify({ adminNotes }),
         });
     },
 };
@@ -235,4 +313,6 @@ export const api = {
     orders,
     reviews,
     users,
+    help,
+    admin,
 };

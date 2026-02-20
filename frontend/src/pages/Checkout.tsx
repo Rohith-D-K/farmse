@@ -1,8 +1,28 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import { ArrowLeft, MapPin, Truck, Store, Info, Trash2 } from 'lucide-react';
+import { api } from '../lib/api';
+import { CircleMarker, MapContainer, Polyline, Popup, TileLayer } from 'react-leaflet';
+import type { LatLngTuple } from 'leaflet';
+
+interface DistanceInfo {
+    distanceKm: number;
+    etaMinutes: number | null;
+    provider: 'ola' | 'haversine';
+    routePoints?: Array<{ latitude: number; longitude: number }>;
+    from: {
+        latitude: number;
+        longitude: number;
+        label: string;
+    };
+    to: {
+        latitude: number;
+        longitude: number;
+        label: string;
+    };
+}
 
 export const Checkout: React.FC = () => {
     const location = useLocation();
@@ -16,8 +36,88 @@ export const Checkout: React.FC = () => {
     const checkoutItems = isDirectBuy
         ? [{ productId: product.id, cropName: product.cropName, price: product.price, quantity, maxQuantity: product.quantity, image: product.image, location: product.location }]
         : cartItems;
+    const checkoutProductKey = checkoutItems.map(item => item.productId).join(',');
 
     const [deliveryMethod, setDeliveryMethod] = useState<'buyer_pickup' | 'farmer_delivery' | 'local_transport'>('buyer_pickup');
+    const [distanceByProduct, setDistanceByProduct] = useState<Record<string, DistanceInfo>>({});
+    const [distanceError, setDistanceError] = useState('');
+    const [cartSyncMessage, setCartSyncMessage] = useState('');
+    const [selectedRouteProductId, setSelectedRouteProductId] = useState<string | null>(checkoutItems[0]?.productId || null);
+
+    useEffect(() => {
+        setSelectedRouteProductId(checkoutItems[0]?.productId || null);
+    }, [checkoutProductKey]);
+
+    useEffect(() => {
+        const syncCartWithInventory = async () => {
+            if (isDirectBuy || cartItems.length === 0) {
+                return;
+            }
+
+            try {
+                const products = await api.products.getAll();
+                const validProductIds = new Set(products.map(productItem => productItem.id));
+                const staleItems = cartItems.filter(item => !validProductIds.has(item.productId));
+
+                if (staleItems.length > 0) {
+                    staleItems.forEach(item => removeFromCart(item.productId));
+                    setCartSyncMessage('Some unavailable products were removed from your cart.');
+                } else {
+                    setCartSyncMessage('');
+                }
+            } catch {
+                // Silent fail; checkout can still proceed with current cart state
+            }
+        };
+
+        syncCartWithInventory();
+    }, [isDirectBuy, cartItems.length]);
+
+    useEffect(() => {
+        const fetchDistancePreview = async () => {
+            if (user?.role !== 'buyer' || checkoutItems.length === 0) {
+                return;
+            }
+
+            try {
+                const settledResults = await Promise.allSettled(
+                    checkoutItems.map(async item => {
+                        const distance = await api.orders.getDistance(item.productId);
+                        return [
+                            item.productId,
+                            {
+                                distanceKm: distance.distanceKm,
+                                etaMinutes: distance.etaMinutes,
+                                provider: distance.provider,
+                                routePoints: distance.routePoints,
+                                from: distance.from,
+                                to: distance.to
+                            } as DistanceInfo
+                        ] as const;
+                    })
+                );
+
+                const successfulEntries = settledResults
+                    .filter((result): result is PromiseFulfilledResult<readonly [string, DistanceInfo]> => result.status === 'fulfilled')
+                    .map(result => result.value);
+
+                setDistanceByProduct(Object.fromEntries(successfulEntries));
+
+                const hasFailures = settledResults.some(result => result.status === 'rejected');
+                if (hasFailures && successfulEntries.length > 0) {
+                    setDistanceError('Distance unavailable for some items');
+                } else if (hasFailures) {
+                    setDistanceError('Distance preview unavailable');
+                } else {
+                    setDistanceError('');
+                }
+            } catch (error: any) {
+                setDistanceError(error.message || 'Distance preview unavailable');
+            }
+        };
+
+        fetchDistancePreview();
+    }, [user?.role, checkoutProductKey]);
 
     if (checkoutItems.length === 0) {
         return (
@@ -36,6 +136,15 @@ export const Checkout: React.FC = () => {
     const deliveryFee = deliveryMethod === 'buyer_pickup' ? 0 : 50; // Mock fee
     const taxes = itemTotal * 0.05; // 5% tax
     const finalTotal = itemTotal + deliveryFee + taxes;
+    const activeRoute = selectedRouteProductId ? distanceByProduct[selectedRouteProductId] : undefined;
+    const routePoints: LatLngTuple[] = activeRoute
+        ? (activeRoute.routePoints && activeRoute.routePoints.length > 1
+            ? activeRoute.routePoints.map(point => [point.latitude, point.longitude] as LatLngTuple)
+            : [
+                [activeRoute.from.latitude, activeRoute.from.longitude],
+                [activeRoute.to.latitude, activeRoute.to.longitude]
+            ])
+        : [];
 
     const handleProceedToPayment = () => {
         navigate('/payment', {
@@ -62,6 +171,11 @@ export const Checkout: React.FC = () => {
                 {/* Items List */}
                 <div className="space-y-3">
                     <h2 className="text-lg font-bold text-gray-900">Order Items ({checkoutItems.length})</h2>
+                    {cartSyncMessage && (
+                        <div className="p-3 rounded-lg bg-blue-50 text-blue-700 text-xs">
+                            {cartSyncMessage}
+                        </div>
+                    )}
                     {checkoutItems.map((item) => (
                         <div key={item.productId} className="card-premium p-4 flex gap-4">
                             <img
@@ -75,6 +189,14 @@ export const Checkout: React.FC = () => {
                                     <MapPin className="w-3 h-3" />
                                     {item.location}
                                 </p>
+                                {distanceByProduct[item.productId] && (
+                                    <p className="text-xs text-green-700 mt-1 font-medium">
+                                        {distanceByProduct[item.productId].distanceKm.toFixed(1)} km from your delivery address
+                                        {distanceByProduct[item.productId].etaMinutes
+                                            ? ` • ~${distanceByProduct[item.productId].etaMinutes} min`
+                                            : ''}
+                                    </p>
+                                )}
                                 <div className="flex justify-between items-center mt-3">
                                     <div className="bg-gray-100 px-2 py-1 rounded-lg text-xs font-bold text-gray-700">
                                         {item.quantity} kg
@@ -93,7 +215,78 @@ export const Checkout: React.FC = () => {
                             )}
                         </div>
                     ))}
+                    {distanceError && (
+                        <div className="p-3 rounded-lg bg-amber-50 text-amber-700 text-xs">
+                            {distanceError}. Update your profile address for accurate farm distance.
+                        </div>
+                    )}
                 </div>
+
+                {activeRoute && routePoints.length > 1 && (
+                    <div className="card-premium p-4 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="font-bold text-gray-900">Route Preview</h3>
+                            <span className="text-xs font-semibold px-2 py-1 rounded-full bg-green-50 text-green-700">
+                                {activeRoute.provider === 'ola' ? 'Ola Route' : 'Estimated Route'}
+                            </span>
+                        </div>
+
+                        {checkoutItems.length > 1 && (
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                                {checkoutItems.map(item => (
+                                    <button
+                                        key={item.productId}
+                                        onClick={() => setSelectedRouteProductId(item.productId)}
+                                        className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${selectedRouteProductId === item.productId
+                                            ? 'bg-green-600 text-white'
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                            }`}
+                                    >
+                                        {item.cropName}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="rounded-xl overflow-hidden border border-gray-200 h-56">
+                            <MapContainer
+                                key={selectedRouteProductId}
+                                bounds={routePoints}
+                                className="w-full h-full"
+                                scrollWheelZoom={false}
+                            >
+                                <TileLayer
+                                    attribution='&copy; OpenStreetMap contributors'
+                                    url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+                                />
+
+                                <Polyline
+                                    positions={routePoints}
+                                    pathOptions={{ color: '#16a34a', weight: 4, opacity: 0.9 }}
+                                />
+
+                                <CircleMarker center={routePoints[0]} radius={7} pathOptions={{ color: '#2563eb', fillColor: '#2563eb', fillOpacity: 1 }}>
+                                    <Popup>{activeRoute.from.label}</Popup>
+                                </CircleMarker>
+
+                                <CircleMarker center={routePoints[routePoints.length - 1]} radius={7} pathOptions={{ color: '#dc2626', fillColor: '#dc2626', fillOpacity: 1 }}>
+                                    <Popup>{activeRoute.to.label}</Popup>
+                                </CircleMarker>
+                            </MapContainer>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                            <div className="p-3 rounded-lg bg-blue-50 text-blue-800">
+                                <p className="font-semibold">From (Buyer)</p>
+                                <p className="mt-1">{activeRoute.from.label}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-red-50 text-red-800">
+                                <p className="font-semibold">To (Farm)</p>
+                                <p className="mt-1">{activeRoute.to.label}</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Delivery Options */}
                 <div className="card-premium p-4 space-y-4">

@@ -17,6 +17,8 @@ import { OrderConfirmation } from './pages/OrderConfirmation';
 import { Orders } from './pages/Orders';
 import { Review } from './pages/Review';
 import { Profile } from './pages/Profile';
+import { Help } from './pages/Help';
+import { Dashboard as AdminDashboard } from './pages/admin/Dashboard';
 
 function App() {
   return (
@@ -62,6 +64,15 @@ function App() {
                 element={
                   <ProtectedRoute requiredRole="buyer">
                     <BuyerDashboard />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/admin/dashboard"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <AdminDashboard />
                   </ProtectedRoute>
                 }
               />
@@ -128,6 +139,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/help"
+                element={
+                  <ProtectedRoute requiredRole="buyer">
+                    <Help />
                   </ProtectedRoute>
                 }
               />

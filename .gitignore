@@ -24,6 +24,8 @@ backend/.env
 # SQLite data
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
 /data/
 
 # Logs

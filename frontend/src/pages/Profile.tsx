@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/api';
 import { User, MapPin, Phone, Mail, Edit2, Save, X, Package, ShoppingBag, LogOut } from 'lucide-react';
@@ -9,7 +10,7 @@ interface UserProfile {
     name: string;
     phone: string;
     location: string;
-    role: 'farmer' | 'buyer';
+    role: 'farmer' | 'buyer' | 'admin';
     deliveryLocation?: string;
     createdAt: string;
 }
@@ -22,6 +23,7 @@ interface OrderStats {
 
 export const Profile: React.FC = () => {
     const { logout } = useAuth();
+    const navigate = useNavigate();
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [orderStats, setOrderStats] = useState<OrderStats>({ total: 0, pending: 0, completed: 0 });
     const [loading, setLoading] = useState(true);
@@ -135,9 +137,11 @@ export const Profile: React.FC = () => {
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${profile.role === 'farmer'
                     ? 'bg-green-100 text-green-700'
-                    : 'bg-blue-100 text-blue-700'
+                    : profile.role === 'admin'
+                        ? 'bg-purple-100 text-purple-700'
+                        : 'bg-blue-100 text-blue-700'
                     }`}>
-                    {profile.role === 'farmer' ? '🌾 Farmer' : '🛒 Buyer'}
+                    {profile.role === 'farmer' ? '🌾 Farmer' : profile.role === 'admin' ? '🛡️ Admin' : '🛒 Buyer'}
                 </span>
             </div>
 
@@ -302,6 +306,14 @@ export const Profile: React.FC = () => {
             {/* Account Actions */}
             <div className="card-premium p-6">
                 <h2 className="text-lg font-bold text-gray-900 mb-4">Account Actions</h2>
+                {profile.role === 'buyer' && (
+                    <button
+                        onClick={() => navigate('/help')}
+                        className="w-full mb-3 flex items-center justify-center gap-2 px-6 py-3 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors font-medium"
+                    >
+                        Report Scammer / Get Help
+                    </button>
+                )}
                 <button
                     onClick={handleLogout}
                     className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium"

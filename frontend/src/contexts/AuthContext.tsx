@@ -7,15 +7,26 @@ export interface User {
     name: string;
     phone: string;
     location: string;
-    role: 'farmer' | 'buyer';
+    role: 'farmer' | 'buyer' | 'admin';
+    isActive?: boolean;
     deliveryLocation: string | null;
+    latitude: number | null;
+    longitude: number | null;
 }
 
 export interface AuthContextType {
     user: User | null;
     loading: boolean;
     login: (email: string, password: string) => Promise<User>;
-    register: (email: string, password: string, userData: Partial<User>) => Promise<User>;
+    register: (email: string, password: string, userData: {
+        name: string;
+        phone: string;
+        location: string;
+        role: 'farmer' | 'buyer';
+        deliveryLocation?: string;
+        latitude?: number;
+        longitude?: number;
+    }) => Promise<User>;
     logout: () => Promise<void>;
 }
 
@@ -40,7 +51,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const register = async (email: string, password: string, userData: Partial<User>) => {
+    const register = async (email: string, password: string, userData: {
+        name: string;
+        phone: string;
+        location: string;
+        role: 'farmer' | 'buyer';
+        deliveryLocation?: string;
+        latitude?: number;
+        longitude?: number;
+    }) => {
         try {
             const newUser = await api.auth.register({
                 email,
@@ -50,6 +69,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 location: userData.location!,
                 role: userData.role!,
                 deliveryLocation: userData.deliveryLocation || undefined,
+                latitude: userData.latitude ?? undefined,
+                longitude: userData.longitude ?? undefined,
             });
             setUser(newUser);
             return newUser;

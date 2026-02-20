@@ -6,6 +6,8 @@ import { productRoutes } from './routes/products';
 import { orderRoutes } from './routes/orders';
 import { reviewRoutes } from './routes/reviews';
 import { userRoutes } from './routes/users';
+import { adminRoutes } from './routes/admin';
+import { helpRoutes } from './routes/help';
 
 dotenv.config();
 
@@ -47,6 +49,8 @@ await fastify.register(productRoutes);
 await fastify.register(orderRoutes);
 await fastify.register(reviewRoutes);
 await fastify.register(userRoutes);
+await fastify.register(adminRoutes);
+await fastify.register(helpRoutes);
 
 // Start server
 const start = async () => {

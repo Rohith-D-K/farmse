@@ -13,7 +13,7 @@ import {
 export async function authRoutes(fastify: FastifyInstance) {
     // Register
     fastify.post('/api/auth/register', async (request, reply) => {
-        const { email, password, name, phone, location, role, deliveryLocation } = request.body as {
+        const { email, password, name, phone, location, role, deliveryLocation, latitude, longitude } = request.body as {
             email: string;
             password: string;
             name: string;
@@ -21,9 +21,15 @@ export async function authRoutes(fastify: FastifyInstance) {
             location: string;
             role: 'farmer' | 'buyer';
             deliveryLocation?: string;
+            latitude?: number;
+            longitude?: number;
         };
 
         try {
+            if (!['buyer', 'farmer'].includes(role)) {
+                return reply.code(403).send({ error: 'Invalid role for public registration' });
+            }
+
             // Check if user exists
             const [existingUser] = await db
                 .select()
@@ -38,6 +44,13 @@ export async function authRoutes(fastify: FastifyInstance) {
             // Create user
             const userId = generateId();
             const passwordHash = await hashPassword(password);
+            const hasValidCoordinates =
+                typeof latitude === 'number' &&
+                typeof longitude === 'number' &&
+                latitude >= -90 &&
+                latitude <= 90 &&
+                longitude >= -180 &&
+                longitude <= 180;
 
             await db.insert(users).values({
                 id: userId,
@@ -47,7 +60,9 @@ export async function authRoutes(fastify: FastifyInstance) {
                 phone,
                 location,
                 role,
-                deliveryLocation: deliveryLocation || null
+                deliveryLocation: deliveryLocation || null,
+                latitude: hasValidCoordinates ? latitude : null,
+                longitude: hasValidCoordinates ? longitude : null
             });
 
             // Create session
@@ -67,7 +82,10 @@ export async function authRoutes(fastify: FastifyInstance) {
                     phone: users.phone,
                     location: users.location,
                     role: users.role,
-                    deliveryLocation: users.deliveryLocation
+                    isActive: users.isActive,
+                    deliveryLocation: users.deliveryLocation,
+                    latitude: users.latitude,
+                    longitude: users.longitude
                 })
                 .from(users)
                 .where(eq(users.id, userId))
@@ -101,6 +119,10 @@ export async function authRoutes(fastify: FastifyInstance) {
                 return reply.code(401).send({ error: 'Invalid credentials' });
             }
 
+            if (!user.isActive) {
+                return reply.code(403).send({ error: 'Your account is deactivated. Contact support.' });
+            }
+
             // Verify password
             const isValid = await verifyPassword(password, user.passwordHash);
             if (!isValid) {
@@ -123,7 +145,10 @@ export async function authRoutes(fastify: FastifyInstance) {
                 phone: user.phone,
                 location: user.location,
                 role: user.role,
-                deliveryLocation: user.deliveryLocation
+                isActive: user.isActive,
+                deliveryLocation: user.deliveryLocation,
+                latitude: user.latitude,
+                longitude: user.longitude
             };
 
             return reply.send({
@@ -186,7 +211,10 @@ export async function authRoutes(fastify: FastifyInstance) {
                     phone: users.phone,
                     location: users.location,
                     role: users.role,
-                    deliveryLocation: users.deliveryLocation
+                    isActive: users.isActive,
+                    deliveryLocation: users.deliveryLocation,
+                    latitude: users.latitude,
+                    longitude: users.longitude
                 })
                 .from(users)
                 .where(eq(users.id, session.userId))

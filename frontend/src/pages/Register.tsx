@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Loader2, Tractor, ShoppingBag } from 'lucide-react';
@@ -12,13 +12,72 @@ export const Register: React.FC = () => {
         password: '',
         phone: '',
         location: '',
-        deliveryLocation: ''
+        deliveryLocation: '',
+        latitude: null as number | null,
+        longitude: null as number | null
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [detectingLocation, setDetectingLocation] = useState(false);
 
     const { register } = useAuth();
     const navigate = useNavigate();
+
+    useEffect(() => {
+        if (step !== 2 || !navigator.geolocation) {
+            return;
+        }
+
+        setDetectingLocation(true);
+
+        navigator.geolocation.getCurrentPosition(
+            async ({ coords }) => {
+                const latitude = Number(coords.latitude.toFixed(6));
+                const longitude = Number(coords.longitude.toFixed(6));
+
+                let detectedLocation = `Lat ${latitude.toFixed(4)}, Lng ${longitude.toFixed(4)}`;
+
+                try {
+                    const response = await fetch(
+                        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
+                        { headers: { Accept: 'application/json' } }
+                    );
+
+                    if (response.ok) {
+                        const reverseData = await response.json() as any;
+                        const address = reverseData?.address;
+                        const city = address?.city || address?.town || address?.village || address?.state_district;
+                        const state = address?.state;
+
+                        if (city && state) {
+                            detectedLocation = `${city}, ${state}`;
+                        } else if (city) {
+                            detectedLocation = city;
+                        }
+                    }
+                } catch {
+                    // Use coordinate fallback if reverse geocoding fails
+                }
+
+                setFormData(prev => ({
+                    ...prev,
+                    location: prev.location || detectedLocation,
+                    deliveryLocation: role === 'buyer' ? (prev.deliveryLocation || detectedLocation) : prev.deliveryLocation,
+                    latitude,
+                    longitude
+                }));
+                setDetectingLocation(false);
+            },
+            () => {
+                setDetectingLocation(false);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 300000
+            }
+        );
+    }, [step, role]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -38,12 +97,16 @@ export const Register: React.FC = () => {
                     phone: formData.phone,
                     location: formData.location,
                     role: role,
-                    deliveryLocation: role === 'buyer' ? formData.deliveryLocation : undefined
+                    deliveryLocation: role === 'buyer' ? formData.deliveryLocation : undefined,
+                    latitude: formData.latitude ?? undefined,
+                    longitude: formData.longitude ?? undefined
                 }
             );
 
             if (user.role === 'farmer') {
                 navigate('/farmer/dashboard');
+            } else if (user.role === 'admin') {
+                navigate('/admin/dashboard');
             } else {
                 navigate('/marketplace');
             }
@@ -150,6 +213,9 @@ export const Register: React.FC = () => {
                         <div>
                             <label className="block text-xs font-bold text-gray-500 mb-1 ml-1 uppercase">Location {role === 'farmer' ? '(Farm Area)' : '(City)'}</label>
                             <input name="location" type="text" required value={formData.location} onChange={handleChange} className="input-field py-2.5" placeholder={role === 'farmer' ? 'Punjab, India' : 'Delhi, India'} />
+                            {detectingLocation && (
+                                <p className="text-[11px] text-green-700 mt-1 ml-1">Detecting current location...</p>
+                            )}
                         </div>
 
                         {role === 'buyer' && (

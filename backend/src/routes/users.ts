@@ -18,7 +18,10 @@ export async function userRoutes(fastify: FastifyInstance) {
                     phone: users.phone,
                     location: users.location,
                     role: users.role,
+                    isActive: users.isActive,
                     deliveryLocation: users.deliveryLocation,
+                    latitude: users.latitude,
+                    longitude: users.longitude,
                     createdAt: users.createdAt
                 })
                 .from(users)
@@ -39,11 +42,13 @@ export async function userRoutes(fastify: FastifyInstance) {
     fastify.put('/api/users/profile', {
         preHandler: authenticate
     }, async (request: AuthenticatedRequest, reply) => {
-        const { name, phone, location, deliveryLocation } = request.body as {
+        const { name, phone, location, deliveryLocation, latitude, longitude } = request.body as {
             name?: string;
             phone?: string;
             location?: string;
             deliveryLocation?: string;
+            latitude?: number;
+            longitude?: number;
         };
 
         try {
@@ -68,6 +73,18 @@ export async function userRoutes(fastify: FastifyInstance) {
                 location
             };
 
+            if (latitude !== undefined || longitude !== undefined) {
+                if (typeof latitude !== 'number' || latitude < -90 || latitude > 90) {
+                    return reply.code(400).send({ error: 'Latitude must be between -90 and 90' });
+                }
+                if (typeof longitude !== 'number' || longitude < -180 || longitude > 180) {
+                    return reply.code(400).send({ error: 'Longitude must be between -180 and 180' });
+                }
+
+                updateData.latitude = latitude;
+                updateData.longitude = longitude;
+            }
+
             // Only update deliveryLocation if user is a buyer
             if (request.user!.role === 'buyer') {
                 updateData.deliveryLocation = deliveryLocation || null;
@@ -87,7 +104,10 @@ export async function userRoutes(fastify: FastifyInstance) {
                     phone: users.phone,
                     location: users.location,
                     role: users.role,
+                    isActive: users.isActive,
                     deliveryLocation: users.deliveryLocation,
+                    latitude: users.latitude,
+                    longitude: users.longitude,
                     createdAt: users.createdAt
                 })
                 .from(users)
@@ -95,6 +115,35 @@ export async function userRoutes(fastify: FastifyInstance) {
                 .limit(1);
 
             return reply.send(updatedUser);
+        } catch (error: any) {
+            return reply.code(500).send({ error: error.message });
+        }
+    });
+
+    // Update user GPS coordinates (automatic location sync)
+    fastify.put('/api/users/location', {
+        preHandler: authenticate
+    }, async (request: AuthenticatedRequest, reply) => {
+        const { latitude, longitude } = request.body as {
+            latitude: number;
+            longitude: number;
+        };
+
+        try {
+            if (typeof latitude !== 'number' || latitude < -90 || latitude > 90) {
+                return reply.code(400).send({ error: 'Latitude must be between -90 and 90' });
+            }
+
+            if (typeof longitude !== 'number' || longitude < -180 || longitude > 180) {
+                return reply.code(400).send({ error: 'Longitude must be between -180 and 180' });
+            }
+
+            await db
+                .update(users)
+                .set({ latitude, longitude })
+                .where(eq(users.id, request.user!.id));
+
+            return reply.send({ message: 'Location updated successfully', latitude, longitude });
         } catch (error: any) {
             return reply.code(500).send({ error: error.message });
         }
