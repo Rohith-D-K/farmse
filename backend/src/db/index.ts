@@ -1,20 +1,12 @@
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import pg from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from './schema';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const connectionString = process.env.DATABASE_URL || 'postgresql://farmse:farmse123@localhost:5432/farmse';
 
-// Use DB_PATH env var (Docker volume) or fall back to local file for dev
-const dbPath = process.env.DB_PATH || path.join(__dirname, '../../farmse.db');
-const sqlite = new Database(dbPath);
-
-// Enable foreign keys
-sqlite.pragma('foreign_keys = ON');
+export const pool = new pg.Pool({ connectionString });
 
 // Create Drizzle instance
-export const db = drizzle(sqlite, { schema });
+export const db = drizzle(pool, { schema });
 
 export { schema };

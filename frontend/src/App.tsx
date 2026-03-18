@@ -19,6 +19,8 @@ import { Review } from './pages/Review';
 import { Profile } from './pages/Profile';
 import { Help } from './pages/Help';
 import { Dashboard as AdminDashboard } from './pages/admin/Dashboard';
+import { ChatRoom } from './pages/ChatRoom';
+import { ChatList } from './pages/ChatList';
 
 function App() {
   return (
@@ -147,6 +149,22 @@ function App() {
                 element={
                   <ProtectedRoute requiredRole="buyer">
                     <Help />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chat/:chatId"
+                element={
+                  <ProtectedRoute>
+                    <ChatRoom />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/messages"
+                element={
+                  <ProtectedRoute>
+                    <ChatList />
                   </ProtectedRoute>
                 }
               />

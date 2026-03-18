@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
-import { desc, eq, inArray } from 'drizzle-orm';
+import { desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../db/index';
-import { helpReports, orders, products, users } from '../db/schema';
+import { helpReports, orders, products, reviews, sessions, users } from '../db/schema';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 
 export async function adminRoutes(fastify: FastifyInstance) {
@@ -90,44 +90,107 @@ export async function adminRoutes(fastify: FastifyInstance) {
         }
     });
 
-    fastify.put('/api/admin/users/:id/status', {
+    fastify.delete('/api/admin/users/:id', {
         preHandler: authenticate
     }, async (request: AuthenticatedRequest, reply) => {
         const { id } = request.params as { id: string };
-        const { isActive } = request.body as { isActive: boolean };
 
         try {
             if (!requireAdmin(request, reply)) return;
 
-            if (id === request.user!.id && !isActive) {
-                return reply.code(400).send({ error: 'You cannot deactivate your own admin account' });
+            if (id === request.user!.id) {
+                return reply.code(400).send({ error: 'You cannot delete your own admin account' });
             }
 
-            await db
-                .update(users)
-                .set({ isActive: Boolean(isActive) })
-                .where(eq(users.id, id));
-
-            const [updatedUser] = await db
-                .select({
-                    id: users.id,
-                    email: users.email,
-                    name: users.name,
-                    phone: users.phone,
-                    location: users.location,
-                    role: users.role,
-                    isActive: users.isActive,
-                    createdAt: users.createdAt
-                })
+            const [targetUser] = await db
+                .select({ id: users.id, role: users.role })
                 .from(users)
                 .where(eq(users.id, id))
                 .limit(1);
 
-            if (!updatedUser) {
+            if (!targetUser) {
                 return reply.code(404).send({ error: 'User not found' });
             }
 
-            return reply.send(updatedUser);
+            if (targetUser.role === 'admin') {
+                return reply.code(400).send({ error: 'Deleting admin users is not allowed' });
+            }
+
+            // Delete in correct order respecting foreign keys
+            // 1. Get all order IDs for this user (as buyer or farmer)
+            const buyerOrders = await db.select({ id: orders.id }).from(orders).where(eq(orders.buyerId, id));
+            const farmerOrders = await db.select({ id: orders.id }).from(orders).where(eq(orders.farmerId, id));
+            const farmerProducts = await db.select({ id: products.id }).from(products).where(eq(products.farmerId, id));
+
+            const buyerOrderIds = buyerOrders.map(o => o.id);
+            const farmerOrderIds = farmerOrders.map(o => o.id);
+            const farmerProductIds = farmerProducts.map(o => o.id);
+            const allOrderIds = [...new Set([...buyerOrderIds, ...farmerOrderIds])];
+
+            let removedHelpReports = 0;
+            let removedReviews = 0;
+            let removedOrders = 0;
+            let removedProducts = 0;
+            let removedSessions = 0;
+
+            // Delete sessions
+            const sessionResult = await db.delete(sessions).where(eq(sessions.userId, id));
+            removedSessions += (sessionResult as any).rowCount ?? 0;
+
+            // Delete help reports by reporter or reported user
+            const hr1 = await db.delete(helpReports).where(eq(helpReports.reporterId, id));
+            removedHelpReports += (hr1 as any).rowCount ?? 0;
+            const hr2 = await db.delete(helpReports).where(eq(helpReports.reportedUserId, id));
+            removedHelpReports += (hr2 as any).rowCount ?? 0;
+
+            // Delete help reports linked to user's orders
+            if (allOrderIds.length > 0) {
+                const hr3 = await db.delete(helpReports).where(inArray(helpReports.orderId, allOrderIds));
+                removedHelpReports += (hr3 as any).rowCount ?? 0;
+            }
+
+            // Delete reviews linked to user's orders
+            if (allOrderIds.length > 0) {
+                const rv1 = await db.delete(reviews).where(inArray(reviews.orderId, allOrderIds));
+                removedReviews += (rv1 as any).rowCount ?? 0;
+            }
+            const rv2 = await db.delete(reviews).where(eq(reviews.buyerId, id));
+            removedReviews += (rv2 as any).rowCount ?? 0;
+
+            // Delete reviews linked to farmer's products
+            if (farmerProductIds.length > 0) {
+                const rv3 = await db.delete(reviews).where(inArray(reviews.productId, farmerProductIds));
+                removedReviews += (rv3 as any).rowCount ?? 0;
+            }
+
+            // Delete orders
+            const o1 = await db.delete(orders).where(eq(orders.buyerId, id));
+            removedOrders += (o1 as any).rowCount ?? 0;
+            const o2 = await db.delete(orders).where(eq(orders.farmerId, id));
+            removedOrders += (o2 as any).rowCount ?? 0;
+            if (farmerProductIds.length > 0) {
+                const o3 = await db.delete(orders).where(inArray(orders.productId, farmerProductIds));
+                removedOrders += (o3 as any).rowCount ?? 0;
+            }
+
+            // Delete products
+            const p1 = await db.delete(products).where(eq(products.farmerId, id));
+            removedProducts += (p1 as any).rowCount ?? 0;
+
+            // Delete user
+            await db.delete(users).where(eq(users.id, id));
+
+            return reply.send({
+                message: 'User deleted successfully',
+                deletedUserId: id,
+                deletedCounts: {
+                    removedHelpReports,
+                    removedReviews,
+                    removedOrders,
+                    removedProducts,
+                    removedSessions
+                }
+            });
         } catch (error: any) {
             return reply.code(500).send({ error: error.message });
         }

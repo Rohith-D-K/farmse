@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface CategoryFilterProps {
     categories: string[];
@@ -7,12 +8,13 @@ interface CategoryFilterProps {
 }
 
 export const CategoryFilter: React.FC<CategoryFilterProps> = ({ categories, activeCategory, onSelect }) => {
+    const { t } = useTranslation();
     // Combine 'All' with other categories
     const allCategories = ['All', ...categories];
 
     return (
-        <div className="w-full overflow-x-auto no-scrollbar pb-2 -mx-4 px-4 pt-1 sticky top-16 bg-gray-50/95 backdrop-blur-sm z-30 md:static md:bg-transparent md:p-0">
-            <div className="flex gap-2">
+        <div className="w-full overflow-x-auto no-scrollbar pb-2 -mx-4 px-4 pt-1 sticky top-16 bg-gray-50/95 backdrop-blur-sm z-30 md:static md:mx-0 md:px-0 md:bg-transparent">
+            <div className="flex gap-2 items-center">
                 {allCategories.map((category) => (
                     <button
                         key={category}
@@ -24,7 +26,7 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({ categories, acti
                                 : 'bg-white text-gray-700 border-gray-200 hover:border-green-200 hover:text-green-700 hover:bg-green-50'}
                         `}
                     >
-                        {category}
+                        {t(`crops.${category}`, {defaultValue: category})}
                     </button>
                 ))}
             </div>

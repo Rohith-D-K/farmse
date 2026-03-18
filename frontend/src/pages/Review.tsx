@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
+import { useTranslation } from 'react-i18next';
 
 export const Review: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { order } = location.state || {};
+    const { t } = useTranslation();
 
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState('');
@@ -16,12 +18,12 @@ export const Review: React.FC = () => {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8 text-center max-w-md w-full">
-                    <p className="text-xl text-gray-900 font-semibold mb-4">Order not found</p>
+                    <p className="text-xl text-gray-900 font-semibold mb-4">{t('review.order_not_found')}</p>
                     <button
                         onClick={() => navigate('/orders')}
                         className="w-full px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
                     >
-                        Go to Orders
+                        {t('review.go_to_orders')}
                     </button>
                 </div>
             </div>
@@ -67,8 +69,8 @@ export const Review: React.FC = () => {
 
                 <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
                     <div className="px-6 py-5 border-b border-gray-200 bg-gray-50">
-                        <h2 className="text-xl font-bold text-gray-900">Leave a Review</h2>
-                        <p className="mt-1 text-sm text-gray-500">Share your experience with this product</p>
+                        <h2 className="text-xl font-bold text-gray-900">{t('review.title')}</h2>
+                        <p className="mt-1 text-sm text-gray-500">{t('review.subtitle')}</p>
                     </div>
 
                     <div className="p-6">
@@ -88,7 +90,7 @@ export const Review: React.FC = () => {
 
                             {/* Rating */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Rating *</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">{t('review.rating')} *</label>
                                 <div className="flex gap-2">
                                     {[1, 2, 3, 4, 5].map((star) => (
                                         <button
@@ -116,13 +118,13 @@ export const Review: React.FC = () => {
                             {/* Comment */}
                             <div>
                                 <label htmlFor="comment" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Comment (Optional)
+                                    {t('review.comment')}
                                 </label>
                                 <textarea
                                     id="comment"
                                     value={comment}
                                     onChange={(e) => setComment(e.target.value)}
-                                    placeholder="Share your thoughts about the product quality, delivery, etc."
+                                    placeholder={t('review.comment_placeholder')}
                                     rows={5}
                                     className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"
                                 />
@@ -134,7 +136,7 @@ export const Review: React.FC = () => {
                                     disabled={loading}
                                     className="flex-1 px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
                                 >
-                                    {loading ? 'Submitting...' : 'Submit Review'}
+                                    {loading ? t('review.submitting') : t('review.submit')}
                                 </button>
                                 <button
                                     type="button"

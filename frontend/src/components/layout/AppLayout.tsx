@@ -2,6 +2,8 @@ import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { BottomNav } from './BottomNav';
 import { TopHeader } from './TopHeader';
+import { AIChatbot } from '../ui/AIChatbot';
+import { GuidedTour } from '../ui/GuidedTour';
 
 export const AppLayout: React.FC = () => {
     const location = useLocation();
@@ -20,6 +22,8 @@ export const AppLayout: React.FC = () => {
             </main>
 
             <BottomNav />
+            <AIChatbot />
+            <GuidedTour />
         </div>
     );
 };

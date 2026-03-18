@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../lib/api';
 import { Plus, Package, TrendingUp, AlertCircle, Trash2, Edit2, MapPin, CheckCircle, XCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { getImageForCrop } from '../../utils/productImages';
 
 interface Product {
     id: string;
@@ -28,6 +30,7 @@ interface Order {
 
 export const Dashboard: React.FC = () => {
     const { user } = useAuth();
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const [products, setProducts] = useState<Product[]>([]);
     const [orders, setOrders] = useState<Order[]>([]);
@@ -104,21 +107,22 @@ export const Dashboard: React.FC = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">{t('farmer.dashboard')}</h1>
                     <p className="text-gray-500 text-sm mt-1 flex items-center gap-1">
                         <MapPin className="w-3 h-3" /> {user?.location}
                     </p>
                 </div>
                 <button
+                    id="tour-add-product"
                     onClick={() => navigate('/farmer/add-product')}
                     className="btn-primary px-6 py-3 flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 active:scale-95 transition-transform"
                 >
-                    <Plus className="w-5 h-5" /> Add New Product
+                    <Plus className="w-5 h-5" /> {t('farmer.add_product')}
                 </button>
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4" id="tour-farmer-stats">
                 <div className="card-premium p-6 flex flex-col justify-between h-32 bg-gradient-to-br from-white to-gray-50 hover:shadow-md transition-shadow">
                     <div className="flex justify-between items-start">
                         <div className="p-2 bg-blue-50 rounded-lg">
@@ -128,7 +132,7 @@ export const Dashboard: React.FC = () => {
                     </div>
                     <div>
                         <p className="text-3xl font-bold text-gray-900">{products.length}</p>
-                        <p className="text-xs text-gray-500 font-medium">Total Products</p>
+                        <p className="text-xs text-gray-500 font-medium">{t('farmer.total_products')}</p>
                     </div>
                 </div>
 
@@ -154,7 +158,7 @@ export const Dashboard: React.FC = () => {
                     </div>
                     <div>
                         <p className="text-3xl font-bold text-gray-900">{lowStock}</p>
-                        <p className="text-xs text-gray-500 font-medium">Low Stock Items</p>
+                        <p className="text-xs text-gray-500 font-medium">{t('farmer.low_stock')}</p>
                     </div>
                 </div>
             </div>
@@ -163,7 +167,7 @@ export const Dashboard: React.FC = () => {
             {incomingOrders.length > 0 && (
                 <div className="space-y-4">
                     <h2 className="text-lg font-bold text-gray-900 px-1 flex items-center gap-2">
-                        Incoming Orders
+                        {t('farmer.incoming_orders')}
                         <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{incomingOrders.length}</span>
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -171,7 +175,7 @@ export const Dashboard: React.FC = () => {
                             <div key={order.id} className="card-premium p-5 border-l-4 border-l-yellow-500">
                                 <div className="flex justify-between items-start mb-3">
                                     <div className="min-w-0">
-                                        <p className="font-semibold text-gray-900 truncate">{order.cropName}</p>
+                                        <p className="font-semibold text-gray-900 truncate">{t(`crops.${order.cropName}`, {defaultValue: order.cropName})}</p>
                                         <p className="font-bold text-gray-900">Order #{order.id.slice(0, 6)}</p>
                                         <p className="text-xs text-gray-500">{new Date(order.createdAt).toLocaleDateString()}</p>
                                     </div>
@@ -182,7 +186,7 @@ export const Dashboard: React.FC = () => {
 
                                 {order.productImage && (
                                     <div className="mb-3 w-full h-28 rounded-lg overflow-hidden border border-gray-100">
-                                        <img src={order.productImage} alt={order.cropName} className="w-full h-full object-cover" />
+                                        <img src={order.productImage} alt={order.cropName} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = getImageForCrop(order.cropName); }} />
                                     </div>
                                 )}
 
@@ -206,13 +210,13 @@ export const Dashboard: React.FC = () => {
                                         onClick={() => handleAcceptOrder(order.id)}
                                         className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-green-700 active:scale-95 transition-all flex items-center justify-center gap-1"
                                     >
-                                        <CheckCircle className="w-4 h-4" /> Accept
+                                        <CheckCircle className="w-4 h-4" /> {t('farmer.accept')}
                                     </button>
                                     <button
                                         onClick={() => handleRejectOrder(order.id)}
                                         className="flex-1 bg-red-50 text-red-600 py-2 rounded-lg text-sm font-bold hover:bg-red-100 active:scale-95 transition-all flex items-center justify-center gap-1"
                                     >
-                                        <XCircle className="w-4 h-4" /> Reject
+                                        <XCircle className="w-4 h-4" /> {t('farmer.reject')}
                                     </button>
                                 </div>
                             </div>
@@ -222,16 +226,16 @@ export const Dashboard: React.FC = () => {
             )}
 
             {/* Products List */}
-            <div className="space-y-4">
-                <h2 className="text-lg font-bold text-gray-900 px-1">Your Products</h2>
+            <div className="space-y-4" id="tour-farmer-products">
+                <h2 className="text-lg font-bold text-gray-900 px-1">{t('farmer.your_products')}</h2>
 
                 {products.length === 0 ? (
                     <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
                         <div className="mx-auto w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
                             <Package className="w-8 h-8 text-gray-400" />
                         </div>
-                        <h3 className="text-lg font-medium text-gray-900">No products listed</h3>
-                        <p className="mt-1 text-sm text-gray-500 max-w-sm mx-auto">Start selling by adding your fresh produce to the marketplace.</p>
+                        <h3 className="text-lg font-medium text-gray-900">{t('farmer.no_products')}</h3>
+                        <p className="mt-1 text-sm text-gray-500 max-w-sm mx-auto">{t('farmer.no_products_desc')}</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -242,20 +246,21 @@ export const Dashboard: React.FC = () => {
                                         src={product.image}
                                         alt={product.cropName}
                                         className="w-full h-full object-cover rounded-lg shadow-sm"
+                                        onError={(e) => { (e.target as HTMLImageElement).src = getImageForCrop(product.cropName); }}
                                     />
                                 </div>
                                 <div className="flex-1 flex flex-col justify-between py-1">
                                     <div>
                                         <div className="flex justify-between items-start">
-                                            <h3 className="font-bold text-gray-900 group-hover:text-green-600 transition-colors">{product.cropName}</h3>
+                                            <h3 className="font-bold text-gray-900 group-hover:text-green-600 transition-colors">{t(`crops.${product.cropName}`, {defaultValue: product.cropName})}</h3>
                                             <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${product.quantity === 0 ? 'bg-gray-100 text-gray-600' :
                                                 product.quantity < 10 ? 'bg-red-50 text-red-600' :
                                                     'bg-green-50 text-green-600'
                                                 }`}>
-                                                {product.quantity} kg left
+                                                {product.quantity} {t('product.kg_left')}
                                             </span>
                                         </div>
-                                        <p className="text-sm font-semibold text-gray-700 mt-1">₹{product.price}<span className="text-xs font-normal text-gray-500">/kg</span></p>
+                                        <p className="text-sm font-semibold text-gray-700 mt-1">₹{product.price}<span className="text-xs font-normal text-gray-500">{t('product.per_kg')}</span></p>
                                     </div>
 
                                     <div className="flex gap-3 mt-3">

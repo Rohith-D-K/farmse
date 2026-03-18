@@ -486,7 +486,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
                 return reply.code(404).send({ error: 'Farmer not found' });
             }
 
-            const buyerLabel = request.user!.deliveryLocation || request.user!.location;
+            const buyerLabel = request.user!.location;
             const buyerCoordinates = await geocodeLocation(buyerLabel);
             const buyerLatitude = buyerCoordinates?.latitude ?? null;
             const buyerLongitude = buyerCoordinates?.longitude ?? null;
@@ -621,6 +621,30 @@ export async function orderRoutes(fastify: FastifyInstance) {
 
             if (!farmer) {
                 return reply.code(404).send({ error: 'Farmer not found' });
+            }
+
+            // Enforce 10km radius for farmer delivery
+            if (deliveryMethod === 'farmer_delivery') {
+                const buyerLat = request.user!.latitude;
+                const buyerLng = request.user!.longitude;
+
+                const [farmerUser] = await db
+                    .select({ latitude: users.latitude, longitude: users.longitude })
+                    .from(users)
+                    .where(eq(users.id, product.farmerId))
+                    .limit(1);
+
+                const farmerLat = farmerUser?.latitude;
+                const farmerLng = farmerUser?.longitude;
+
+                if (buyerLat != null && buyerLng != null && farmerLat != null && farmerLng != null) {
+                    const distance = haversineDistanceKm(buyerLat, buyerLng, farmerLat, farmerLng);
+                    if (distance > 10) {
+                        return reply.code(400).send({
+                            error: `Farmer delivery is only available within 10 km. You are ${distance.toFixed(1)} km away. Please choose Buyer Pickup instead.`
+                        });
+                    }
+                }
             }
 
             // Calculate total price

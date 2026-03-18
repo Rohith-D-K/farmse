@@ -76,20 +76,16 @@ export const Dashboard: React.FC = () => {
         }
     };
 
-    const toggleUserStatus = async (user: AdminUser) => {
+    const deleteUser = async (user: AdminUser) => {
+        const confirmed = window.confirm(`Delete user ${user.name}? This will remove related sessions, orders, products, and reviews.`);
+        if (!confirmed) return;
+
         try {
-            const updated = await api.admin.updateUserStatus(user.id, !user.isActive);
-            setUsers(prev => prev.map(item => item.id === updated.id ? updated : item));
-            setOverview(prev => prev ? {
-                ...prev,
-                users: {
-                    ...prev.users,
-                    active: updated.isActive ? prev.users.active + 1 : Math.max(0, prev.users.active - 1),
-                    deactivated: updated.isActive ? Math.max(0, prev.users.deactivated - 1) : prev.users.deactivated + 1
-                }
-            } : prev);
+            await api.admin.deleteUser(user.id);
+            setUsers(prev => prev.filter(item => item.id !== user.id));
+            fetchAdminData();
         } catch (error: any) {
-            alert(error.message || 'Failed to update user status');
+            alert(error.message || 'Failed to delete user');
         }
     };
 
@@ -196,10 +192,10 @@ export const Dashboard: React.FC = () => {
                                 </select>
 
                                 <button
-                                    onClick={() => toggleUserStatus(user)}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold ${user.isActive ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-700 hover:bg-green-100'}`}
+                                    onClick={() => deleteUser(user)}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-50 text-red-600 hover:bg-red-100"
                                 >
-                                    {user.isActive ? 'Deactivate' : 'Activate'}
+                                    Delete User
                                 </button>
                             </div>
                         </div>

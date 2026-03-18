@@ -1,12 +1,24 @@
 import { FastifyInstance } from 'fastify';
 import { db } from '../db/index';
-import { products, users } from '../db/schema';
-import { eq, and, gt } from 'drizzle-orm';
+import { products, users, sessions } from '../db/schema';
+import { eq, and, gt, sql } from 'drizzle-orm';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { generateId } from '../utils/auth';
 
+// Haversine distance in km
+function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
 export async function productRoutes(fastify: FastifyInstance) {
-    // Get all products
+    // Get all products (with 10km proximity filter for authenticated buyers)
     fastify.get('/api/products', async (request, reply) => {
         try {
             const allProducts = await db
@@ -23,7 +35,103 @@ export async function productRoutes(fastify: FastifyInstance) {
                 .from(products)
                 .where(gt(products.quantity, 0));
 
+            // Try to get buyer location from auth token for proximity filter
+            const authHeader = request.headers.authorization;
+            if (authHeader) {
+                const token = authHeader.replace('Bearer ', '');
+                const [session] = await db
+                    .select()
+                    .from(sessions)
+                    .where(eq(sessions.id, token))
+                    .limit(1);
+
+                if (session) {
+                    const [user] = await db
+                        .select()
+                        .from(users)
+                        .where(eq(users.id, session.userId))
+                        .limit(1);
+
+                    if (user && user.role === 'buyer' && user.latitude && user.longitude) {
+                        // Get all farmers with locations
+                        const allFarmers = await db
+                            .select({ id: users.id, latitude: users.latitude, longitude: users.longitude })
+                            .from(users)
+                            .where(eq(users.role, 'farmer'));
+
+                        const nearbyFarmerIds = new Set(
+                            allFarmers
+                                .filter(f => f.latitude && f.longitude &&
+                                    haversineDistance(user.latitude!, user.longitude!, f.latitude!, f.longitude!) <= 10)
+                                .map(f => f.id)
+                        );
+
+                        const filtered = allProducts.filter(p => nearbyFarmerIds.has(p.farmerId));
+                        return reply.send(filtered);
+                    }
+                }
+            }
+
             return reply.send(allProducts);
+        } catch (error: any) {
+            return reply.code(500).send({ error: error.message });
+        }
+    });
+
+    // Suggest price based on 200km radius average
+    fastify.get('/api/products/suggest-price', {
+        preHandler: authenticate
+    }, async (request: AuthenticatedRequest, reply) => {
+        const { cropName: queryCrop } = request.query as { cropName: string };
+
+        if (!queryCrop) {
+            return reply.code(400).send({ error: 'cropName query param is required' });
+        }
+
+        try {
+            const farmer = request.user!;
+            if (!farmer.latitude || !farmer.longitude) {
+                return reply.code(400).send({ error: 'Farmer location not set' });
+            }
+
+            // Get all products matching the crop name with their farmer locations
+            const matchingProducts = await db
+                .select({
+                    price: products.price,
+                    farmerId: products.farmerId
+                })
+                .from(products)
+                .where(sql`LOWER(${products.cropName}) = LOWER(${queryCrop})`);
+
+            // Get farmer locations
+            const farmerIds = [...new Set(matchingProducts.map(p => p.farmerId))];
+            const farmers = farmerIds.length > 0
+                ? await db.select({ id: users.id, latitude: users.latitude, longitude: users.longitude }).from(users).where(sql`${users.id} IN (${sql.join(farmerIds.map(id => sql`${id}`), sql`, `)})`)
+                : [];
+
+            const farmerMap = new Map(farmers.map(f => [f.id, f]));
+
+            // Filter to products from farmers within 200km
+            const nearbyPrices = matchingProducts.filter(p => {
+                const f = farmerMap.get(p.farmerId);
+                if (!f || !f.latitude || !f.longitude) return false;
+                return haversineDistance(farmer.latitude!, farmer.longitude!, f.latitude!, f.longitude!) <= 200;
+            }).map(p => p.price);
+
+            if (nearbyPrices.length === 0) {
+                return reply.send({ suggestedPrice: null, minPrice: null, maxPrice: null, count: 0, message: 'No listings found within 200km for this crop' });
+            }
+
+            const avg = nearbyPrices.reduce((a, b) => a + b, 0) / nearbyPrices.length;
+            const minPrice = Math.min(...nearbyPrices);
+            const maxPrice = Math.max(...nearbyPrices);
+            return reply.send({
+                suggestedPrice: Math.round(avg * 100) / 100,
+                minPrice: Math.round(minPrice * 100) / 100,
+                maxPrice: Math.round(maxPrice * 100) / 100,
+                count: nearbyPrices.length,
+                message: `Based on ${nearbyPrices.length} listing${nearbyPrices.length > 1 ? 's' : ''} within 200km`
+            });
         } catch (error: any) {
             return reply.code(500).send({ error: error.message });
         }
@@ -179,6 +287,32 @@ export async function productRoutes(fastify: FastifyInstance) {
             return reply.send({ message: 'Product deleted successfully' });
         } catch (error: any) {
             return reply.code(500).send({ error: error.message });
+        }
+    });
+
+    // Search for a crop image from Wikipedia (no auth needed for image resolution)
+    fastify.get('/api/products/crop-image', {
+        preHandler: authenticate
+    }, async (request: AuthenticatedRequest, reply) => {
+        const { name } = request.query as { name: string };
+        if (!name || name.trim().length < 2) {
+            return reply.code(400).send({ error: 'name query param is required (min 2 chars)' });
+        }
+
+        try {
+            const searchTerm = encodeURIComponent(name.trim());
+            const res = await fetch(
+                `https://en.wikipedia.org/api/rest_v1/page/summary/${searchTerm}`
+            );
+            if (res.ok) {
+                const data = await res.json();
+                if (data.thumbnail?.source) {
+                    return reply.send({ imageUrl: data.thumbnail.source });
+                }
+            }
+            return reply.send({ imageUrl: null });
+        } catch {
+            return reply.send({ imageUrl: null });
         }
     });
 }

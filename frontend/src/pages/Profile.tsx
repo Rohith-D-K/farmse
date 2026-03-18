@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/api';
 import { User, MapPin, Phone, Mail, Edit2, Save, X, Package, ShoppingBag, LogOut } from 'lucide-react';
+import { LocationPicker } from '../components/ui/LocationPicker';
+import { useTranslation } from 'react-i18next';
 
 interface UserProfile {
     id: string;
@@ -12,6 +14,8 @@ interface UserProfile {
     location: string;
     role: 'farmer' | 'buyer' | 'admin';
     deliveryLocation?: string;
+    latitude?: number | null;
+    longitude?: number | null;
     createdAt: string;
 }
 
@@ -23,6 +27,7 @@ interface OrderStats {
 
 export const Profile: React.FC = () => {
     const { logout } = useAuth();
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [orderStats, setOrderStats] = useState<OrderStats>({ total: 0, pending: 0, completed: 0 });
@@ -35,7 +40,9 @@ export const Profile: React.FC = () => {
         name: '',
         phone: '',
         location: '',
-        deliveryLocation: ''
+        deliveryLocation: '',
+        latitude: null as number | null,
+        longitude: null as number | null
     });
 
     useEffect(() => {
@@ -54,7 +61,9 @@ export const Profile: React.FC = () => {
                 name: profileData.name,
                 phone: profileData.phone,
                 location: profileData.location,
-                deliveryLocation: profileData.deliveryLocation || ''
+                deliveryLocation: profileData.deliveryLocation || '',
+                latitude: profileData.latitude ?? null,
+                longitude: profileData.longitude ?? null
             });
 
             // Calculate order stats
@@ -81,7 +90,9 @@ export const Profile: React.FC = () => {
             name: profile?.name || '',
             phone: profile?.phone || '',
             location: profile?.location || '',
-            deliveryLocation: profile?.deliveryLocation || ''
+            deliveryLocation: profile?.deliveryLocation || '',
+            latitude: profile?.latitude ?? null,
+            longitude: profile?.longitude ?? null
         });
     };
 
@@ -92,7 +103,9 @@ export const Profile: React.FC = () => {
                 name: formData.name,
                 phone: formData.phone,
                 location: formData.location,
-                deliveryLocation: formData.deliveryLocation
+                deliveryLocation: formData.deliveryLocation,
+                latitude: formData.latitude ?? undefined,
+                longitude: formData.longitude ?? undefined
             });
             setProfile(updatedProfile);
             setIsEditing(false);
@@ -132,8 +145,8 @@ export const Profile: React.FC = () => {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Profile</h1>
-                    <p className="text-sm text-gray-500 mt-1">Manage your account information</p>
+                    <h1 className="text-2xl font-bold text-gray-900">{t('profile.title')}</h1>
+                    <p className="text-sm text-gray-500 mt-1">{t('profile.manage_account')}</p>
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${profile.role === 'farmer'
                     ? 'bg-green-100 text-green-700'
@@ -148,7 +161,7 @@ export const Profile: React.FC = () => {
             {/* Profile Information Card */}
             <div className="card-premium p-6">
                 <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-lg font-bold text-gray-900">Personal Information</h2>
+                    <h2 className="text-lg font-bold text-gray-900">{t('profile.personal_info')}</h2>
                     {!isEditing ? (
                         <button
                             onClick={handleEdit}
@@ -183,7 +196,7 @@ export const Profile: React.FC = () => {
                     <div>
                         <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                             <User className="w-4 h-4" />
-                            Full Name
+                            {t('profile.full_name')}
                         </label>
                         {isEditing ? (
                             <input
@@ -202,17 +215,17 @@ export const Profile: React.FC = () => {
                     <div>
                         <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                             <Mail className="w-4 h-4" />
-                            Email
+                            {t('profile.email')}
                         </label>
                         <p className="text-gray-900 font-medium px-4 py-3 bg-gray-50 rounded-lg">{profile.email}</p>
-                        <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+                        <p className="text-xs text-gray-500 mt-1">{t('profile.email_no_change')}</p>
                     </div>
 
                     {/* Phone */}
                     <div>
                         <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                             <Phone className="w-4 h-4" />
-                            Phone Number
+                            {t('profile.phone')}
                         </label>
                         {isEditing ? (
                             <input
@@ -229,20 +242,23 @@ export const Profile: React.FC = () => {
 
                     {/* Location */}
                     <div>
-                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                            <MapPin className="w-4 h-4" />
-                            Location
-                        </label>
                         {isEditing ? (
-                            <input
-                                type="text"
+                            <LocationPicker
+                                label="Location"
                                 value={formData.location}
-                                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                placeholder="City, State"
+                                latitude={formData.latitude}
+                                longitude={formData.longitude}
+                                onChange={(loc, lat, lng) => setFormData(prev => ({ ...prev, location: loc, latitude: lat, longitude: lng }))}
+                                placeholder="Search your location..."
                             />
                         ) : (
-                            <p className="text-gray-900 font-medium px-4 py-3 bg-gray-50 rounded-lg">{profile.location}</p>
+                            <>
+                                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                                    <MapPin className="w-4 h-4" />
+                                    Location
+                                </label>
+                                <p className="text-gray-900 font-medium px-4 py-3 bg-gray-50 rounded-lg">{profile.location}</p>
+                            </>
                         )}
                     </div>
 
@@ -251,7 +267,7 @@ export const Profile: React.FC = () => {
                         <div>
                             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                                 <MapPin className="w-4 h-4" />
-                                Delivery Address
+                                {t('profile.delivery_address')}
                             </label>
                             {isEditing ? (
                                 <input
@@ -263,7 +279,7 @@ export const Profile: React.FC = () => {
                                 />
                             ) : (
                                 <p className="text-gray-900 font-medium px-4 py-3 bg-gray-50 rounded-lg">
-                                    {profile.deliveryLocation || 'Not set'}
+                                    {profile.deliveryLocation || t('profile.not_set')}
                                 </p>
                             )}
                         </div>
@@ -273,7 +289,7 @@ export const Profile: React.FC = () => {
 
             {/* Order Statistics */}
             <div className="card-premium p-6">
-                <h2 className="text-lg font-bold text-gray-900 mb-4">Order Statistics</h2>
+                <h2 className="text-lg font-bold text-gray-900 mb-4">{t('profile.order_stats')}</h2>
                 <div className="grid grid-cols-3 gap-4">
                     <div className="text-center p-4 bg-blue-50 rounded-lg">
                         <div className="flex justify-center mb-2">
@@ -284,34 +300,34 @@ export const Profile: React.FC = () => {
                             )}
                         </div>
                         <p className="text-2xl font-bold text-blue-600">{orderStats.total}</p>
-                        <p className="text-xs text-gray-600 mt-1">Total Orders</p>
+                        <p className="text-xs text-gray-600 mt-1">{t('profile.total_orders')}</p>
                     </div>
                     <div className="text-center p-4 bg-yellow-50 rounded-lg">
                         <div className="flex justify-center mb-2">
                             <Package className="w-6 h-6 text-yellow-600" />
                         </div>
                         <p className="text-2xl font-bold text-yellow-600">{orderStats.pending}</p>
-                        <p className="text-xs text-gray-600 mt-1">Pending</p>
+                        <p className="text-xs text-gray-600 mt-1">{t('profile.pending')}</p>
                     </div>
                     <div className="text-center p-4 bg-green-50 rounded-lg">
                         <div className="flex justify-center mb-2">
                             <Package className="w-6 h-6 text-green-600" />
                         </div>
                         <p className="text-2xl font-bold text-green-600">{orderStats.completed}</p>
-                        <p className="text-xs text-gray-600 mt-1">Completed</p>
+                        <p className="text-xs text-gray-600 mt-1">{t('profile.completed')}</p>
                     </div>
                 </div>
             </div>
 
             {/* Account Actions */}
             <div className="card-premium p-6">
-                <h2 className="text-lg font-bold text-gray-900 mb-4">Account Actions</h2>
+                <h2 className="text-lg font-bold text-gray-900 mb-4">{t('profile.account_actions')}</h2>
                 {profile.role === 'buyer' && (
                     <button
                         onClick={() => navigate('/help')}
                         className="w-full mb-3 flex items-center justify-center gap-2 px-6 py-3 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors font-medium"
                     >
-                        Report Scammer / Get Help
+                        {t('profile.report_help')}
                     </button>
                 )}
                 <button
@@ -319,13 +335,13 @@ export const Profile: React.FC = () => {
                     className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium"
                 >
                     <LogOut className="w-5 h-5" />
-                    Logout
+                    {t('common.logout')}
                 </button>
             </div>
 
             {/* Account Info */}
             <div className="text-center text-sm text-gray-500">
-                <p>Member since {new Date(profile.createdAt).toLocaleDateString('en-US', {
+                <p>{t('profile.member_since')} {new Date(profile.createdAt).toLocaleDateString('en-US', {
                     month: 'long',
                     year: 'numeric'
                 })}</p>

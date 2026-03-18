@@ -1,19 +1,17 @@
 #!/bin/sh
 set -e
 
-DB_FILE="${DB_PATH:-/data/farmse.db}"
+echo "🔧 Running database initialization..."
+node --import tsx/esm src/init-db.ts
+echo "✅ Database ready."
 
-# Run DB init on first launch (when DB doesn't exist yet)
-if [ ! -f "$DB_FILE" ]; then
-    echo "🌱 First run detected — initialising database..."
-    node --import tsx/esm src/init-db.ts
-    echo "✅ Database initialised."
-
+# Seed on first run (check if users table is empty)
+SEED_FLAG="/tmp/.farmse_seeded"
+if [ ! -f "$SEED_FLAG" ]; then
     echo "🌱 Seeding sample data..."
     node --import tsx/esm scripts/clear-and-seed.ts
     echo "✅ Seed complete."
-else
-    echo "✅ Database already exists, skipping init."
+    touch "$SEED_FLAG"
 fi
 
 exec "$@"

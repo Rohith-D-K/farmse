@@ -1,9 +1,9 @@
 // API base URL strategy:
 // - VITE_API_URL=""   => relative URLs (Docker/Nginx or Vite proxy)
 // - VITE_API_URL set   => explicit absolute base URL
-// - VITE_API_URL unset => default to local backend for direct dev
+// - VITE_API_URL unset => relative URLs (works with Vite proxy and cloudflared)
 const envApiUrl = import.meta.env.VITE_API_URL;
-const API_URL = envApiUrl === undefined ? 'http://localhost:3000' : envApiUrl;
+const API_URL = envApiUrl === undefined ? '' : envApiUrl;
 
 // Get session token from localStorage
 function getSessionToken(): string | null {
@@ -154,6 +154,18 @@ export const products = {
             method: 'DELETE',
         });
     },
+
+    suggestPrice: async (cropName: string) => {
+        return apiRequest<{ suggestedPrice: number | null; minPrice?: number | null; maxPrice?: number | null; count?: number; message: string }>(
+            `/api/products/suggest-price?cropName=${encodeURIComponent(cropName)}`
+        );
+    },
+
+    cropImage: async (name: string) => {
+        return apiRequest<{ imageUrl: string | null }>(
+            `/api/products/crop-image?name=${encodeURIComponent(name)}`
+        );
+    },
 };
 
 // Orders API
@@ -281,10 +293,9 @@ export const admin = {
         return apiRequest<any[]>('/api/admin/users');
     },
 
-    updateUserStatus: async (id: string, isActive: boolean) => {
-        return apiRequest<any>(`/api/admin/users/${id}/status`, {
-            method: 'PUT',
-            body: JSON.stringify({ isActive }),
+    deleteUser: async (id: string) => {
+        return apiRequest<{ message: string; deletedUserId: string }>(`/api/admin/users/${id}`, {
+            method: 'DELETE',
         });
     },
 
@@ -307,6 +318,69 @@ export const admin = {
     },
 };
 
+// Location API
+export interface LocationSuggestion {
+    label: string;
+    sublabel: string;
+    latitude: number | null;
+    longitude: number | null;
+    placeId: string | null;
+    provider: 'ola' | 'nominatim';
+}
+
+export interface ReverseGeocodeResult {
+    label: string;
+    latitude: number;
+    longitude: number;
+    provider: string;
+}
+
+export const location = {
+    autocomplete: async (query: string): Promise<LocationSuggestion[]> => {
+        if (!query || query.trim().length < 2) return [];
+        return apiRequest<LocationSuggestion[]>(`/api/location/autocomplete?q=${encodeURIComponent(query.trim())}`);
+    },
+
+    reverseGeocode: async (lat: number, lon: number): Promise<ReverseGeocodeResult> => {
+        return apiRequest<ReverseGeocodeResult>(`/api/location/reverse?lat=${lat}&lon=${lon}`);
+    },
+};
+
+// AI API
+export const ai = {
+    chat: async (message: string, language: string = 'en', role: string = 'buyer') => {
+        return apiRequest<{ response: string; type: string; suggestions?: string[] }>('/api/ai/chat', {
+            method: 'POST',
+            body: JSON.stringify({ message, language, role }),
+        });
+    },
+};
+
+// Chats API
+export const chats = {
+    start: async (data: { productId: string; farmerId: string }) => {
+        return apiRequest<any>('/api/chats/start', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+
+    getMessages: async (chatId: string) => {
+        return apiRequest<any[]>(`/api/chats/${chatId}/messages`);
+    },
+
+    sendMessage: async (chatId: string, data: { senderId: string; text: string }) => {
+        return apiRequest<any>(`/api/chats/${chatId}/message`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+
+    getUserChats: async (userId: string) => {
+        return apiRequest<any[]>(`/api/chats/user/${userId}`);
+    },
+};
+
 export const api = {
     auth,
     products,
@@ -315,4 +389,7 @@ export const api = {
     users,
     help,
     admin,
+    location,
+    ai,
+    chats,
 };

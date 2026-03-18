@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useCart } from '../contexts/CartContext';
+import { useTranslation } from 'react-i18next';
 
 export const Payment: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { clearCart } = useCart();
+    const { t } = useTranslation();
 
     // Support both single product (legacy) and multi-item (cart) flows
     const state = location.state || {};
@@ -29,12 +31,12 @@ export const Payment: React.FC = () => {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8 text-center max-w-md w-full">
-                    <p className="text-xl text-gray-900 font-semibold mb-4">Invalid checkout session</p>
+                    <p className="text-xl text-gray-900 font-semibold mb-4">{t('payment.invalid_session')}</p>
                     <button
                         onClick={() => navigate('/marketplace')}
                         className="w-full px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
                     >
-                        Go to Marketplace
+                        {t('payment.go_to_marketplace')}
                     </button>
                 </div>
             </div>
@@ -90,8 +92,8 @@ export const Payment: React.FC = () => {
 
                 <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
                     <div className="px-6 py-5 border-b border-gray-200 bg-gray-50">
-                        <h2 className="text-xl font-bold text-gray-900">Payment</h2>
-                        <p className="mt-1 text-sm text-gray-500">Complete your order</p>
+                        <h2 className="text-xl font-bold text-gray-900">{t('payment.title')}</h2>
+                        <p className="mt-1 text-sm text-gray-500">{t('payment.complete_order')}</p>
                     </div>
 
                     <div className="p-6 space-y-8">
@@ -103,24 +105,24 @@ export const Payment: React.FC = () => {
 
                         {/* Order Summary */}
                         <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
-                            <h3 className="font-semibold text-gray-900 mb-4">Order Summary ({items.length} items)</h3>
+                            <h3 className="font-semibold text-gray-900 mb-4">{t('payment.order_summary')} ({items.length} {t('payment.items')})</h3>
                             <div className="space-y-3 text-sm">
                                 {items.map((item: any, index: number) => (
                                     <div key={index} className="flex justify-between pb-2 border-b border-gray-100 last:border-0">
                                         <div>
-                                            <span className="font-medium text-gray-900 block">{item.cropName}</span>
-                                            <span className="text-xs text-gray-500">{item.quantity} kg x ₹{item.price}</span>
+                                            <span className="font-medium text-gray-900 block">{t(`crops.${item.cropName}`, {defaultValue: item.cropName})}</span>
+                                            <span className="text-xs text-gray-500">{item.quantity} {t('checkout.kg')} x ₹{item.price}</span>
                                         </div>
                                         <span className="font-medium text-gray-900">₹{(item.price * item.quantity).toFixed(2)}</span>
                                     </div>
                                 ))}
 
                                 <div className="flex justify-between pt-2">
-                                    <span className="text-gray-600">Delivery Method</span>
+                                    <span className="text-gray-600">{t('payment.delivery_method')}</span>
                                     <span className="font-medium text-gray-900 capitalize">{deliveryMethod.replace('_', ' ')}</span>
                                 </div>
                                 <div className="border-t border-gray-200 pt-3 flex justify-between font-bold text-lg">
-                                    <span className="text-gray-900">Total Amount</span>
+                                    <span className="text-gray-900">{t('payment.total_amount')}</span>
                                     <span className="text-green-600">₹{totalPrice.toFixed(2)}</span>
                                 </div>
                             </div>
@@ -128,7 +130,7 @@ export const Payment: React.FC = () => {
 
                         {/* Payment Method */}
                         <div>
-                            <h3 className="font-semibold text-gray-900 mb-4">Select Payment Method</h3>
+                            <h3 className="font-semibold text-gray-900 mb-4">{t('payment.select_payment')}</h3>
                             <div className="space-y-3">
                                 <label
                                     className={`relative flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === 'upi'
@@ -145,8 +147,8 @@ export const Payment: React.FC = () => {
                                         className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300"
                                     />
                                     <div className="ml-4">
-                                        <span className="block text-sm font-bold text-gray-900">💳 UPI Payment</span>
-                                        <span className="block text-sm text-gray-500">Pay using GPay, PhonePe, Paytm, etc.</span>
+                                        <span className="block text-sm font-bold text-gray-900">💳 {t('payment.upi')}</span>
+                                        <span className="block text-sm text-gray-500">{t('payment.upi_desc')}</span>
                                     </div>
                                 </label>
 
@@ -165,8 +167,8 @@ export const Payment: React.FC = () => {
                                         className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300"
                                     />
                                     <div className="ml-4">
-                                        <span className="block text-sm font-bold text-gray-900">🏦 Bank Transfer</span>
-                                        <span className="block text-sm text-gray-500">Direct transfer to farmer's account</span>
+                                        <span className="block text-sm font-bold text-gray-900">🏦 {t('payment.bank_transfer')}</span>
+                                        <span className="block text-sm text-gray-500">{t('payment.bank_transfer_desc')}</span>
                                     </div>
                                 </label>
 
@@ -185,8 +187,8 @@ export const Payment: React.FC = () => {
                                         className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300"
                                     />
                                     <div className="ml-4">
-                                        <span className="block text-sm font-bold text-gray-900">💵 Cash on Delivery</span>
-                                        <span className="block text-sm text-gray-500">Pay with cash when your order is delivered</span>
+                                        <span className="block text-sm font-bold text-gray-900">💵 {t('payment.cod')}</span>
+                                        <span className="block text-sm text-gray-500">{t('payment.cod_desc')}</span>
                                     </div>
                                 </label>
                             </div>
@@ -194,7 +196,7 @@ export const Payment: React.FC = () => {
 
                         <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg text-sm flex items-start">
                             <span className="text-xl mr-2">💡</span>
-                            <p className="mt-0.5">This is a demo application. No actual payment will be processed, but the order will be recorded in the system.</p>
+                            <p className="mt-0.5">{t('payment.demo_note')}</p>
                         </div>
 
                         <button
@@ -202,7 +204,7 @@ export const Payment: React.FC = () => {
                             disabled={loading}
                             className="w-full py-4 px-6 bg-green-600 text-white rounded-xl text-lg font-bold hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-200 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {loading ? 'Processing Order...' : `${paymentMethod === 'cash_on_delivery' ? 'Place Order' : 'Pay'} ₹${totalPrice.toFixed(2)}`}
+                            {loading ? t('payment.placing_order') : `${paymentMethod === 'cash_on_delivery' ? t('payment.place_order') : t('payment.title')} ₹${totalPrice.toFixed(2)}`}
                         </button>
                     </div>
                 </div>

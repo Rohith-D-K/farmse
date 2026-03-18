@@ -1,4 +1,4 @@
-import { db } from '../src/db/index';
+import { db, pool } from '../src/db/index';
 import { users, products, orders, reviews, sessions, helpReports } from '../src/db/schema';
 import { hashPassword, generateId } from '../src/utils/auth';
 
@@ -456,6 +456,8 @@ async function clearAndSeedDatabase() {
     } catch (error: any) {
         console.error('❌ Seeding failed:', error.message);
         process.exit(1);
+    } finally {
+        await pool.end();
     }
 }
 

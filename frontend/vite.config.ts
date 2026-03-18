@@ -4,7 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [
     react(),
     VitePWA({
@@ -51,10 +51,7 @@ export default defineConfig({
   },
   server: {
     host: true,
-    allowedHosts: [
-      '.trycloudflare.com',
-      'localhost'
-    ],
+    allowedHosts: command === 'serve' ? true : undefined,
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
@@ -66,4 +63,4 @@ export default defineConfig({
       }
     }
   }
-})
+}))

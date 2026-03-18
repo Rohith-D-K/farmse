@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
-import { ArrowLeft, MapPin, Truck, Store, Info, Trash2 } from 'lucide-react';
+import { MapPin, Truck, Store, Info, Trash2 } from 'lucide-react';
 import { api } from '../lib/api';
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer } from 'react-leaflet';
 import type { LatLngTuple } from 'leaflet';
+import { useTranslation } from 'react-i18next';
+import { getImageForCrop } from '../utils/productImages';
 
 interface DistanceInfo {
     distanceKm: number;
@@ -29,6 +31,7 @@ export const Checkout: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { items: cartItems, removeFromCart } = useCart();
+    const { t } = useTranslation();
     const { product, quantity } = location.state || {};
 
     // Support both cart checkout and direct "Buy Now"
@@ -123,9 +126,9 @@ export const Checkout: React.FC = () => {
         return (
             <div className="min-h-screen flex items-center justify-center p-4">
                 <div className="text-center">
-                    <p className="text-xl font-bold text-gray-900 mb-4">Cart is empty</p>
+                    <p className="text-xl font-bold text-gray-900 mb-4">{t('checkout.cart_empty')}</p>
                     <button onClick={() => navigate('/marketplace')} className="btn-primary px-6 py-2">
-                        Browse Marketplace
+                        {t('checkout.browse_marketplace')}
                     </button>
                 </div>
             </div>
@@ -136,6 +139,18 @@ export const Checkout: React.FC = () => {
     const deliveryFee = deliveryMethod === 'buyer_pickup' ? 0 : 50; // Mock fee
     const taxes = itemTotal * 0.05; // 5% tax
     const finalTotal = itemTotal + deliveryFee + taxes;
+
+    // Check if any product exceeds 10km for farmer delivery eligibility
+    const maxDistanceKm = Object.values(distanceByProduct).reduce(
+        (max, d) => Math.max(max, d.distanceKm), 0
+    );
+    const farmerDeliveryAvailable = maxDistanceKm <= 10 || Object.keys(distanceByProduct).length === 0;
+
+    // Auto-switch away from farmer_delivery if it becomes unavailable
+    if (!farmerDeliveryAvailable && deliveryMethod === 'farmer_delivery') {
+        setDeliveryMethod('buyer_pickup');
+    }
+
     const activeRoute = selectedRouteProductId ? distanceByProduct[selectedRouteProductId] : undefined;
     const routePoints: LatLngTuple[] = activeRoute
         ? (activeRoute.routePoints && activeRoute.routePoints.length > 1
@@ -159,18 +174,11 @@ export const Checkout: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-24 md:pb-8">
-            <header className="bg-white sticky top-0 z-30 px-4 py-3 shadow-sm flex items-center gap-4 md:hidden">
-                <button onClick={() => navigate(-1)} className="p-1">
-                    <ArrowLeft className="w-6 h-6 text-gray-700" />
-                </button>
-                <h1 className="text-lg font-bold text-gray-900">Checkout</h1>
-            </header>
-
-            <div className="max-w-2xl mx-auto md:py-8 space-y-6 px-4 pt-6">
+            <div className="max-w-2xl mx-auto md:py-8 space-y-6 pt-2">
 
                 {/* Items List */}
                 <div className="space-y-3">
-                    <h2 className="text-lg font-bold text-gray-900">Order Items ({checkoutItems.length})</h2>
+                    <h2 className="text-lg font-bold text-gray-900">{t('checkout.order_items')} ({checkoutItems.length})</h2>
                     {cartSyncMessage && (
                         <div className="p-3 rounded-lg bg-blue-50 text-blue-700 text-xs">
                             {cartSyncMessage}
@@ -182,16 +190,17 @@ export const Checkout: React.FC = () => {
                                 src={item.image}
                                 alt={item.cropName}
                                 className="w-20 h-20 rounded-xl object-cover shadow-sm"
+                                onError={(e) => { (e.target as HTMLImageElement).src = getImageForCrop(item.cropName); }}
                             />
                             <div className="flex-1">
-                                <h3 className="font-bold text-gray-900">{item.cropName}</h3>
+                                <h3 className="font-bold text-gray-900">{t(`crops.${item.cropName}`, {defaultValue: item.cropName})}</h3>
                                 <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                                     <MapPin className="w-3 h-3" />
                                     {item.location}
                                 </p>
                                 {distanceByProduct[item.productId] && (
                                     <p className="text-xs text-green-700 mt-1 font-medium">
-                                        {distanceByProduct[item.productId].distanceKm.toFixed(1)} km from your delivery address
+                                        {distanceByProduct[item.productId].distanceKm.toFixed(1)} {t('checkout.km_away')}
                                         {distanceByProduct[item.productId].etaMinutes
                                             ? ` • ~${distanceByProduct[item.productId].etaMinutes} min`
                                             : ''}
@@ -199,7 +208,7 @@ export const Checkout: React.FC = () => {
                                 )}
                                 <div className="flex justify-between items-center mt-3">
                                     <div className="bg-gray-100 px-2 py-1 rounded-lg text-xs font-bold text-gray-700">
-                                        {item.quantity} kg
+                                        {item.quantity} {t('checkout.kg')}
                                     </div>
                                     <span className="font-bold text-gray-900">₹{(item.price * item.quantity).toFixed(2)}</span>
                                 </div>
@@ -225,9 +234,9 @@ export const Checkout: React.FC = () => {
                 {activeRoute && routePoints.length > 1 && (
                     <div className="card-premium p-4 space-y-4">
                         <div className="flex items-center justify-between">
-                            <h3 className="font-bold text-gray-900">Route Preview</h3>
+                            <h3 className="font-bold text-gray-900">{t('checkout.route_preview')}</h3>
                             <span className="text-xs font-semibold px-2 py-1 rounded-full bg-green-50 text-green-700">
-                                {activeRoute.provider === 'ola' ? 'Ola Route' : 'Estimated Route'}
+                                {activeRoute.provider === 'ola' ? 'Ola' : t('checkout.estimated_route')}
                             </span>
                         </div>
 
@@ -242,7 +251,7 @@ export const Checkout: React.FC = () => {
                                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                             }`}
                                     >
-                                        {item.cropName}
+                                        {t(`crops.${item.cropName}`, {defaultValue: item.cropName})}
                                     </button>
                                 ))}
                             </div>
@@ -277,11 +286,11 @@ export const Checkout: React.FC = () => {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                             <div className="p-3 rounded-lg bg-blue-50 text-blue-800">
-                                <p className="font-semibold">From (Buyer)</p>
+                                <p className="font-semibold">{t('checkout.your_location')}</p>
                                 <p className="mt-1">{activeRoute.from.label}</p>
                             </div>
                             <div className="p-3 rounded-lg bg-red-50 text-red-800">
-                                <p className="font-semibold">To (Farm)</p>
+                                <p className="font-semibold">{t('checkout.farm_location')}</p>
                                 <p className="mt-1">{activeRoute.to.label}</p>
                             </div>
                         </div>
@@ -291,7 +300,7 @@ export const Checkout: React.FC = () => {
                 {/* Delivery Options */}
                 <div className="card-premium p-4 space-y-4">
                     <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                        <Truck className="w-5 h-5 text-green-600" /> Delivery Options
+                        <Truck className="w-5 h-5 text-green-600" /> {t('checkout.delivery_options')}
                     </h3>
 
                     <div className="space-y-3">
@@ -302,24 +311,30 @@ export const Checkout: React.FC = () => {
                             <input type="radio" name="delivery" checked={deliveryMethod === 'buyer_pickup'} onChange={() => setDeliveryMethod('buyer_pickup')} className="w-5 h-5 text-green-600 accent-green-600" />
                             <div className="flex-1">
                                 <div className="flex justify-between">
-                                    <span className="font-bold text-gray-900">Buyer Pickup</span>
-                                    <span className="text-green-600 font-bold">Free</span>
+                                    <span className="font-bold text-gray-900">{t('checkout.buyer_pickup')}</span>
+                                    <span className="text-green-600 font-bold">{t('checkout.free')}</span>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1">Pick up directly from farm</p>
+                                <p className="text-xs text-gray-500 mt-1">{t('checkout.buyer_pickup_desc')}</p>
                             </div>
                         </label>
 
                         <label className={`
                             flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all
-                            ${deliveryMethod === 'farmer_delivery' ? 'border-green-500 bg-green-50/50' : 'border-gray-100 hover:border-gray-200'}
+                            ${!farmerDeliveryAvailable ? 'opacity-50 cursor-not-allowed border-gray-100 bg-gray-50' :
+                              deliveryMethod === 'farmer_delivery' ? 'border-green-500 bg-green-50/50' : 'border-gray-100 hover:border-gray-200'}
                         `}>
-                            <input type="radio" name="delivery" checked={deliveryMethod === 'farmer_delivery'} onChange={() => setDeliveryMethod('farmer_delivery')} className="w-5 h-5 text-green-600 accent-green-600" />
+                            <input type="radio" name="delivery" checked={deliveryMethod === 'farmer_delivery'} onChange={() => setDeliveryMethod('farmer_delivery')} disabled={!farmerDeliveryAvailable} className="w-5 h-5 text-green-600 accent-green-600" />
                             <div className="flex-1">
                                 <div className="flex justify-between">
-                                    <span className="font-bold text-gray-900">Farmer Delivery</span>
+                                    <span className="font-bold text-gray-900">{t('checkout.farmer_delivery')}</span>
                                     <span className="text-gray-900 font-bold">₹50</span>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1">Delivered to your doorstep</p>
+                                <p className="text-xs text-gray-500 mt-1">{t('checkout.delivered_to_doorstep')}</p>
+                                {!farmerDeliveryAvailable && (
+                                    <p className="text-xs text-red-500 mt-1 font-medium">
+                                        {t('checkout.not_available_farm_distance', { distance: maxDistanceKm.toFixed(1) })}
+                                    </p>
+                                )}
                             </div>
                         </label>
                     </div>
@@ -328,32 +343,32 @@ export const Checkout: React.FC = () => {
                     <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl mt-2">
                         <MapPin className="w-4 h-4 text-gray-500 mt-0.5" />
                         <div>
-                            <p className="text-xs font-bold text-gray-700">Deliver to:</p>
-                            <p className="text-xs text-gray-600 mt-0.5 line-clamp-1">{user?.deliveryLocation || user?.location}</p>
+                            <p className="text-xs font-bold text-gray-700">{t('checkout.your_location')}:</p>
+                            <p className="text-xs text-gray-600 mt-0.5 line-clamp-1">{user?.location}</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Bill Details */}
                 <div className="card-premium p-4 space-y-4">
-                    <h3 className="font-bold text-gray-900">Bill Details</h3>
+                    <h3 className="font-bold text-gray-900">{t('checkout.bill_details')}</h3>
                     <div className="space-y-3 text-sm">
                         <div className="flex justify-between text-gray-600">
-                            <span>Item Total</span>
+                            <span>{t('checkout.item_total')}</span>
                             <span>₹{itemTotal.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-gray-600">
-                            <span>Delivery Fee</span>
+                            <span>{t('checkout.delivery_fee')}</span>
                             <span className={deliveryFee === 0 ? 'text-green-600' : ''}>
                                 {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee.toFixed(2)}`}
                             </span>
                         </div>
                         <div className="flex justify-between text-gray-600">
-                            <span className="flex items-center gap-1">Taxes <Info className="w-3 h-3" /></span>
+                            <span className="flex items-center gap-1">{t('checkout.taxes')} <Info className="w-3 h-3" /></span>
                             <span>₹{taxes.toFixed(2)}</span>
                         </div>
                         <div className="border-t border-dashed border-gray-300 pt-3 flex justify-between font-bold text-lg text-gray-900">
-                            <span>To Pay</span>
+                            <span>{t('checkout.to_pay')}</span>
                             <span>₹{finalTotal.toFixed(2)}</span>
                         </div>
                     </div>
@@ -375,7 +390,7 @@ export const Checkout: React.FC = () => {
                     >
                         <span>₹{finalTotal.toFixed(2)}</span>
                         <span className="flex items-center gap-2 text-base font-semibold">
-                            Proceed to Pay <span className="bg-green-500/50 rounded-lg p-1">→</span>
+                            {t('checkout.proceed_to_pay')} <span className="bg-green-500/50 rounded-lg p-1">→</span>
                         </span>
                     </button>
                 </div>

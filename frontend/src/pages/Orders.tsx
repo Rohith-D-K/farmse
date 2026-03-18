@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/api';
 import { Package, Truck, CheckCircle, Clock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { getImageForCrop } from '../utils/productImages';
 
 interface Order {
     id: string;
@@ -22,6 +24,7 @@ interface Order {
 export const Orders: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -71,17 +74,17 @@ export const Orders: React.FC = () => {
     return (
         <div className="space-y-6 pb-20 md:pb-0">
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-gray-900">Your Orders</h1>
+                <h1 className="text-2xl font-bold text-gray-900">{t('orders.your_orders')}</h1>
             </div>
 
             <div className="space-y-4">
                 {orders.length === 0 ? (
                     <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
                         <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                        <h3 className="text-lg font-bold text-gray-900">No orders yet</h3>
-                        <p className="text-gray-500 mb-6">Looks like you haven't placed any orders yet.</p>
+                        <h3 className="text-lg font-bold text-gray-900">{t('orders.no_orders')}</h3>
+                        <p className="text-gray-500 mb-6">{t('orders.no_orders_desc')}</p>
                         <button onClick={() => navigate('/marketplace')} className="btn-primary px-6 py-2">
-                            Start Shopping
+                            {t('orders.start_shopping')}
                         </button>
                     </div>
                 ) : (
@@ -91,7 +94,7 @@ export const Orders: React.FC = () => {
                                 <div className="flex items-center gap-3 min-w-0">
                                     <div className="w-12 h-12 rounded-xl overflow-hidden border border-gray-100 bg-gray-50 flex-shrink-0">
                                         {order.productImage ? (
-                                            <img src={order.productImage} alt={order.cropName} className="w-full h-full object-cover" />
+                                            <img src={order.productImage} alt={order.cropName} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = getImageForCrop(order.cropName); }} />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center">
                                                 <Package className="w-5 h-5 text-gray-500" />
@@ -99,7 +102,7 @@ export const Orders: React.FC = () => {
                                         )}
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="font-semibold text-gray-900 truncate">{order.cropName}</p>
+                                        <p className="font-semibold text-gray-900 truncate">{t(`crops.${order.cropName}`, {defaultValue: order.cropName})}</p>
                                         <h3 className="font-bold text-gray-900">Order #{order.id.substring(0, 8)}</h3>
                                         <p className="text-xs text-gray-500">
                                             {new Date(order.createdAt).toLocaleDateString('en-IN', {
@@ -116,7 +119,7 @@ export const Orders: React.FC = () => {
 
                             <div className="flex justify-between items-center py-3 border-t border-dashed border-gray-200">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-900">{order.quantity} kg {order.cropName}</p>
+                                    <p className="text-sm font-medium text-gray-900">{order.quantity} {t('checkout.kg')} {t(`crops.${order.cropName}`, {defaultValue: order.cropName})}</p>
                                     <p className="text-xs text-gray-500">{order.productLocation}</p>
                                     <p className="text-xs text-gray-500 capitalize">{order.deliveryMethod.replace('_', ' ')}</p>
                                 </div>
@@ -133,7 +136,7 @@ export const Orders: React.FC = () => {
                                         onClick={() => navigate('/review', { state: { order } })}
                                         className="text-sm font-bold text-green-600 hover:text-green-700 hover:underline"
                                     >
-                                        Write a Review
+                                        {t('orders.write_review')}
                                     </button>
                                 </div>
                             )}

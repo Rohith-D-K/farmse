@@ -1,15 +1,32 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: farmse
+      POSTGRES_PASSWORD: farmse123
+      POSTGRES_DB: farmse
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U farmse" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     environment:
       PORT: "3000"
-      DB_PATH: /data/farmse.db
-      # Allow any origin in Docker (nginx handles CORS at the edge)
+      DATABASE_URL: postgresql://farmse:farmse123@postgres:5432/farmse
       ALLOWED_ORIGIN: "*"
-    volumes:
-      - sqlite_data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "wget", "-qO-", "http://localhost:3000/health" ]
@@ -42,4 +59,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  sqlite_data:
+  postgres_data:

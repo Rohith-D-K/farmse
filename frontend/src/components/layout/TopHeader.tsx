@@ -2,7 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
-import { LogOut, Search, ShoppingCart, User } from 'lucide-react';
+import { LogOut, Search, ShoppingCart, User, Globe, MessageSquare } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+
+const LANGUAGES = [
+    { code: 'en', label: 'English' },
+    { code: 'hi', label: 'हिंदी' },
+    { code: 'ta', label: 'தமிழ்' },
+    { code: 'te', label: 'తెలుగు' },
+    { code: 'kn', label: 'ಕನ್ನಡ' }
+];
 
 export const TopHeader: React.FC = () => {
     const { user, logout } = useAuth();
@@ -10,6 +19,8 @@ export const TopHeader: React.FC = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
+    const [showLangMenu, setShowLangMenu] = useState(false);
+    const { i18n, t } = useTranslation();
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
@@ -56,11 +67,11 @@ export const TopHeader: React.FC = () => {
                 {/* Desktop Search (Buyer only, visible on md+) */}
                 <div className="hidden md:flex flex-1 max-w-md mx-8">
                     {user.role === 'buyer' && (
-                        <div className="relative w-full">
+                        <div className="relative w-full" id="tour-search-bar">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                             <input
                                 type="text"
-                                placeholder="Search for fresh crops..."
+                                placeholder={t('marketplace.search_placeholder')}
                                 value={searchTerm}
                                 onChange={handleSearch}
                                 className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
@@ -71,7 +82,40 @@ export const TopHeader: React.FC = () => {
                     </div>
 
                 {/* Right Actions */}
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1 sm:gap-4">
+                    {/* Language Switcher */}
+                    <div className="relative" id="tour-language-switcher">
+                        <button
+                            onClick={() => setShowLangMenu(!showLangMenu)}
+                            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                            title="Change Language"
+                        >
+                            <Globe className="w-5 h-5 text-gray-600" />
+                        </button>
+                        {showLangMenu && (
+                            <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-50 min-w-[140px]">
+                                {LANGUAGES.map(lang => (
+                                    <button
+                                        key={lang.code}
+                                        onClick={() => { i18n.changeLanguage(lang.code); setShowLangMenu(false); }}
+                                        className={`w-full text-left px-4 py-2 text-sm hover:bg-green-50 transition-colors ${i18n.language === lang.code ? 'text-green-600 font-medium bg-green-50' : 'text-gray-700'}`}
+                                    >
+                                        {lang.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Messages - hidden on mobile since BottomNav has Chats */}
+                    <button
+                        onClick={() => navigate('/messages')}
+                        className="hidden sm:block p-2 hover:bg-gray-100 rounded-full transition-colors"
+                        title="Messages"
+                    >
+                        <MessageSquare className="w-5 h-5 text-gray-600" />
+                    </button>
+
                     {user.role === 'buyer' && (
                         <button
                             onClick={() => navigate('/checkout')}
@@ -86,12 +130,12 @@ export const TopHeader: React.FC = () => {
                         </button>
                     )}
 
-                    <div className="flex items-center gap-3 pl-4 border-l border-gray-100">
+                    <div className="flex items-center gap-1 sm:gap-3 pl-2 sm:pl-4 border-l border-gray-100">
                         <div className="hidden sm:block text-right">
                             <p className="text-sm font-medium text-gray-900">{user.name}</p>
                             <p className="text-xs text-gray-500 capitalize">{user.role}</p>
                         </div>
-                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-medium">
+                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-medium text-sm">
                             {user.name[0].toUpperCase()}
                         </div>
                         <button
@@ -103,7 +147,7 @@ export const TopHeader: React.FC = () => {
                         </button>
                         <button
                             onClick={handleLogout}
-                            className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-full transition-all"
+                            className="hidden sm:block p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-full transition-all"
                             title="Logout"
                         >
                             <LogOut className="w-5 h-5" />

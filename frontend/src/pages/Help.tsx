@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api';
 import { AlertTriangle, LifeBuoy } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface OrderOption {
     id: string;
@@ -21,6 +22,7 @@ export const Help: React.FC = () => {
     const [orders, setOrders] = useState<OrderOption[]>([]);
     const [reports, setReports] = useState<HelpReport[]>([]);
     const [loading, setLoading] = useState(true);
+    const { t } = useTranslation();
     const [submitting, setSubmitting] = useState(false);
     const [form, setForm] = useState({
         orderId: '',
@@ -90,47 +92,47 @@ export const Help: React.FC = () => {
         <div className="space-y-6 pb-20 md:pb-0">
             <div>
                 <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                    <LifeBuoy className="w-6 h-6 text-green-600" /> Help & Report Scammers
+                    <LifeBuoy className="w-6 h-6 text-green-600" /> {t('help.title')}
                 </h1>
-                <p className="text-sm text-gray-500 mt-1">Facing a scam or suspicious behavior? Submit a report and our admin team will review it.</p>
+                <p className="text-sm text-gray-500 mt-1">{t('help.subtitle')}</p>
             </div>
 
             <div className="card-premium p-6">
-                <h2 className="text-lg font-bold text-gray-900 mb-4">Submit a Report</h2>
+                <h2 className="text-lg font-bold text-gray-900 mb-4">{t('help.submit_report')}</h2>
 
                 <form onSubmit={submitReport} className="space-y-4">
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Related Order (optional)</label>
+                        <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">{t('help.related_order')}</label>
                         <select
                             value={form.orderId}
                             onChange={e => setForm(prev => ({ ...prev, orderId: e.target.value }))}
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
                         >
-                            <option value="">No specific order</option>
+                            <option value="">{t('help.no_specific_order')}</option>
                             {orders.map(order => (
                                 <option key={order.id} value={order.id}>
-                                    #{order.id.slice(0, 8)} - {order.cropName}
+                                    #{order.id.slice(0, 8)} - {t(`crops.${order.cropName}`, {defaultValue: order.cropName})}
                                 </option>
                             ))}
                         </select>
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Issue Type</label>
+                        <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">{t('help.issue_type')}</label>
                         <select
                             value={form.category}
                             onChange={e => setForm(prev => ({ ...prev, category: e.target.value as 'scam' | 'payment_issue' | 'delivery_issue' | 'other' }))}
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
                         >
-                            <option value="scam">Scam / Fraud</option>
-                            <option value="payment_issue">Payment Issue</option>
-                            <option value="delivery_issue">Delivery Issue</option>
-                            <option value="other">Other</option>
+                            <option value="scam">{t('help.scam')}</option>
+                            <option value="payment_issue">{t('help.payment_issue')}</option>
+                            <option value="delivery_issue">{t('help.delivery_issue')}</option>
+                            <option value="other">{t('help.other')}</option>
                         </select>
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Description</label>
+                        <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">{t('help.description')}</label>
                         <textarea
                             value={form.description}
                             onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))}
@@ -138,7 +140,7 @@ export const Help: React.FC = () => {
                             minLength={10}
                             rows={5}
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                            placeholder="Describe what happened, including important details."
+                            placeholder={t('help.description_placeholder')}
                         />
                     </div>
 
@@ -147,16 +149,16 @@ export const Help: React.FC = () => {
                         disabled={submitting}
                         className="px-5 py-2.5 rounded-lg bg-green-600 text-white text-sm font-bold hover:bg-green-700 disabled:opacity-50"
                     >
-                        {submitting ? 'Submitting...' : 'Submit Report'}
+                        {submitting ? t('help.submitting') : t('help.submit')}
                     </button>
                 </form>
             </div>
 
             <div className="card-premium p-6">
-                <h2 className="text-lg font-bold text-gray-900 mb-4">Your Reports</h2>
+                <h2 className="text-lg font-bold text-gray-900 mb-4">{t('help.your_reports')}</h2>
 
                 {reports.length === 0 ? (
-                    <p className="text-sm text-gray-500">No reports submitted yet.</p>
+                    <p className="text-sm text-gray-500">{t('help.no_reports')}</p>
                 ) : (
                     <div className="space-y-3">
                         {reports.map(report => (
