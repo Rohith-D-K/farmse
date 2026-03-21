@@ -388,8 +388,11 @@ export interface PriceRecommendation {
     marketPrice: number | null;
     demand: number | null;
     demandLevel: 'high' | 'medium' | 'low' | 'unknown';
+    seasonFactor: number;
+    seasonLabel: 'peak' | 'off-season' | 'normal';
     nearbyListingCount: number;
     message: string;
+    modelWeights: { w1: number; w2: number; w3: number; w4: number };
     defaultPriceRange?: { min: number; max: number };
 }
 

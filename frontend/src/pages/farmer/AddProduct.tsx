@@ -265,13 +265,22 @@ export const AddProduct: React.FC = () => {
                                                         }`}>
                                                             {recommendation.demandLevel.charAt(0).toUpperCase() + recommendation.demandLevel.slice(1)} demand
                                                         </span>
+                                                        {recommendation.seasonLabel && (
+                                                            <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${
+                                                                recommendation.seasonLabel === 'off-season' ? 'bg-blue-100 text-blue-700' :
+                                                                recommendation.seasonLabel === 'peak' ? 'bg-orange-100 text-orange-700' :
+                                                                'bg-gray-100 text-gray-600'
+                                                            }`}>
+                                                                {recommendation.seasonLabel === 'peak' ? '📈 Peak season' : recommendation.seasonLabel === 'off-season' ? '📉 Off-season' : '📊 Normal season'} (×{recommendation.seasonFactor})
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 )}
                                             </>
                                         ) : recommendation.defaultPriceRange ? (
                                             <p className="text-lg font-semibold text-gray-700">₹{recommendation.defaultPriceRange.min} – ₹{recommendation.defaultPriceRange.max}<span className="text-sm font-normal text-gray-500">/kg</span></p>
                                         ) : null}
-                                        <p className="text-[11px] text-gray-400 mt-1.5">{recommendation.message}</p>
+                                        <p className="text-[11px] text-gray-400 mt-1.5">🤖 {recommendation.message}</p>
                                     </div>
                                     {recommendation.recommendedPrice !== null && (
                                         <button

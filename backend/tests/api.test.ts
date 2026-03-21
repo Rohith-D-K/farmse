@@ -441,7 +441,25 @@ describe('Price Recommendation', () => {
         expect(body.nearbyListingCount).toBeGreaterThanOrEqual(1);
         expect(body.demand).toBeTypeOf('number');
         expect(['high', 'medium', 'low', 'unknown']).toContain(body.demandLevel);
-        expect(body.message).toBeTruthy();
+        // Verify ML model fields
+        expect(body.seasonFactor).toBeTypeOf('number');
+        expect(['peak', 'off-season', 'normal']).toContain(body.seasonLabel);
+        expect(body.modelWeights).toBeTruthy();
+        expect(body.modelWeights.w1).toBe(0.40);
+        expect(body.modelWeights.w2).toBe(0.25);
+        expect(body.modelWeights.w3).toBe(0.20);
+        expect(body.modelWeights.w4).toBe(0.15);
+        expect(body.message).toContain('Weighted Linear Regression');
+    });
+
+    it('includes season factor in response for Rice', async () => {
+        const { status, body } = await apiRequest(
+            '/api/price/recommend?cropName=Rice&lat=11.0168&lng=76.9558'
+        );
+        expect(status).toBe(200);
+        expect(body.seasonFactor).toBeTypeOf('number');
+        expect([0.90, 1.00, 1.15]).toContain(body.seasonFactor);
+        expect(['peak', 'off-season', 'normal']).toContain(body.seasonLabel);
     });
 
     it('rejects missing query params', async () => {
