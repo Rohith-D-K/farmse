@@ -12,6 +12,7 @@ import { helpRoutes } from './routes/help';
 import { locationRoutes } from './routes/location';
 import { aiRoutes } from './routes/ai';
 import { chatRoutes } from './routes/chats';
+import { priceRoutes } from './routes/price';
 
 dotenv.config();
 
@@ -58,6 +59,7 @@ await fastify.register(helpRoutes);
 await fastify.register(locationRoutes);
 await fastify.register(aiRoutes);
 await fastify.register(chatRoutes);
+await fastify.register(priceRoutes);
 
 // Register Socket.IO
 await fastify.register(fastifySocketIO, {

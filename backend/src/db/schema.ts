@@ -105,6 +105,22 @@ export const messages = pgTable('messages', {
     createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
 });
 
+// Market prices table (government/market reference prices)
+export const marketPrices = pgTable('market_prices', {
+    id: text('id').primaryKey(),
+    cropName: text('crop_name').notNull(),
+    price: doublePrecision('price').notNull(),
+    source: text('source').notNull().default('default'),
+    updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+// Crop searches table (tracks buyer search activity for demand)
+export const cropSearches = pgTable('crop_searches', {
+    id: text('id').primaryKey(),
+    cropName: text('crop_name').notNull(),
+    searchedAt: text('searched_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -122,3 +138,7 @@ export type Chat = typeof chats.$inferSelect;
 export type NewChat = typeof chats.$inferInsert;
 export type Message = typeof messages.$inferSelect;
 export type NewMessage = typeof messages.$inferInsert;
+export type MarketPrice = typeof marketPrices.$inferSelect;
+export type NewMarketPrice = typeof marketPrices.$inferInsert;
+export type CropSearch = typeof cropSearches.$inferSelect;
+export type NewCropSearch = typeof cropSearches.$inferInsert;

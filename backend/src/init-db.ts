@@ -109,6 +109,52 @@ async function initDatabase() {
       )
     `);
 
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS market_prices (
+        id TEXT PRIMARY KEY,
+        crop_name TEXT NOT NULL,
+        price DOUBLE PRECISION NOT NULL,
+        source TEXT NOT NULL DEFAULT 'default',
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS crop_searches (
+        id TEXT PRIMARY KEY,
+        crop_name TEXT NOT NULL,
+        searched_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Seed default market prices for common Indian crops (₹ per kg)
+    const defaultMarketPrices = [
+      { crop: 'Rice', price: 38 },
+      { crop: 'Wheat', price: 28 },
+      { crop: 'Tomato', price: 35 },
+      { crop: 'Onion', price: 30 },
+      { crop: 'Potato', price: 22 },
+      { crop: 'Carrot', price: 40 },
+      { crop: 'Spinach', price: 25 },
+      { crop: 'Brinjal', price: 32 },
+      { crop: 'Cauliflower', price: 35 },
+      { crop: 'Cabbage', price: 20 },
+      { crop: 'Banana', price: 45 },
+      { crop: 'Mango', price: 80 },
+    ];
+
+    for (const mp of defaultMarketPrices) {
+      const existing = await db.execute(
+        sql`SELECT id FROM market_prices WHERE LOWER(crop_name) = LOWER(${mp.crop}) LIMIT 1`
+      );
+      if (existing.rows.length === 0) {
+        await db.execute(
+          sql`INSERT INTO market_prices (id, crop_name, price, source) VALUES (${generateId()}, ${mp.crop}, ${mp.price}, 'government_default')`
+        );
+      }
+    }
+    console.log('💰 Market prices seeded for', defaultMarketPrices.length, 'crops');
+
     const existingAdmin = await db.execute(
       sql`SELECT id FROM users WHERE role = 'admin' LIMIT 1`
     );

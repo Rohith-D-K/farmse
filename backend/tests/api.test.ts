@@ -380,6 +380,91 @@ describe('Chats', () => {
     });
 });
 
+// ────────────────────────── Price Recommendation ──────────────────────────
+describe('Price Recommendation', () => {
+    it('returns default price range for unknown crop', async () => {
+        const { status, body } = await apiRequest(
+            '/api/price/recommend?cropName=UnknownCrop123&lat=11.0168&lng=76.9558'
+        );
+        expect(status).toBe(200);
+        expect(body.recommendedPrice).toBeNull();
+        expect(body.defaultPriceRange).toBeTruthy();
+        expect(body.defaultPriceRange.min).toBeTypeOf('number');
+        expect(body.defaultPriceRange.max).toBeTypeOf('number');
+    });
+
+    it('returns market price fallback for crop with no listings', async () => {
+        const { status, body } = await apiRequest(
+            '/api/price/recommend?cropName=Rice&lat=11.0168&lng=76.9558'
+        );
+        expect(status).toBe(200);
+        expect(body.recommendedPrice).toBeTypeOf('number');
+        expect(body.marketPrice).toBeTypeOf('number');
+        expect(body.avgNearbyPrice).toBeNull();
+        expect(body.nearbyListingCount).toBe(0);
+    });
+
+    it('tracks a crop search', async () => {
+        const { status, body } = await apiRequest('/api/price/search-track', {
+            method: 'POST',
+            body: JSON.stringify({ cropName: 'Tomato' }),
+        });
+        expect(status).toBe(200);
+        expect(body.ok).toBe(true);
+    });
+
+    it('tracks multiple searches to raise demand', async () => {
+        // Add several searches to push demand higher
+        for (let i = 0; i < 4; i++) {
+            await apiRequest('/api/price/search-track', {
+                method: 'POST',
+                body: JSON.stringify({ cropName: 'Tomato' }),
+            });
+        }
+        const { status, body } = await apiRequest('/api/price/search-track', {
+            method: 'POST',
+            body: JSON.stringify({ cropName: 'Tomato' }),
+        });
+        expect(status).toBe(200);
+        expect(body.ok).toBe(true);
+    });
+
+    it('returns recommendation for Tomato with nearby listings', async () => {
+        // The farmer created a Tomato product earlier in the Products test suite
+        const { status, body } = await apiRequest(
+            `/api/price/recommend?cropName=Tomato&lat=${farmerAccount.latitude}&lng=${farmerAccount.longitude}`
+        );
+        expect(status).toBe(200);
+        expect(body.recommendedPrice).toBeTypeOf('number');
+        expect(body.avgNearbyPrice).toBeTypeOf('number');
+        expect(body.marketPrice).toBeTypeOf('number');
+        expect(body.nearbyListingCount).toBeGreaterThanOrEqual(1);
+        expect(body.demand).toBeTypeOf('number');
+        expect(['high', 'medium', 'low', 'unknown']).toContain(body.demandLevel);
+        expect(body.message).toBeTruthy();
+    });
+
+    it('rejects missing query params', async () => {
+        const { status } = await apiRequest('/api/price/recommend?cropName=Tomato');
+        expect(status).toBe(400);
+    });
+
+    it('rejects invalid coordinates', async () => {
+        const { status } = await apiRequest(
+            '/api/price/recommend?cropName=Tomato&lat=abc&lng=def'
+        );
+        expect(status).toBe(400);
+    });
+
+    it('rejects empty cropName for search-track', async () => {
+        const { status } = await apiRequest('/api/price/search-track', {
+            method: 'POST',
+            body: JSON.stringify({ cropName: '' }),
+        });
+        expect(status).toBe(400);
+    });
+});
+
 // ────────────────────────── Cleanup ──────────────────────────
 describe('Cleanup', () => {
     it('test data was created successfully', () => {
@@ -403,6 +488,8 @@ afterAll(async () => {
         await pool.query(`DELETE FROM products WHERE farmer_id IN (${userIds})`, emails);
         await pool.query(`DELETE FROM sessions WHERE user_id IN (${userIds})`, emails);
         await pool.query(`DELETE FROM users WHERE email IN (${p})`, emails);
+        // Clean up test search tracking data
+        await pool.query(`DELETE FROM crop_searches WHERE LOWER(crop_name) = 'tomato'`);
     } finally {
         await pool.end();
     }
