@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../lib/api';
-import { ArrowLeft, Upload, Loader2, MapPin, DollarSign, Package, Lightbulb, ImagePlus, X } from 'lucide-react';
+import type { PriceRecommendation } from '../../lib/api';
+import { ArrowLeft, Upload, Loader2, MapPin, DollarSign, Package, Lightbulb, ImagePlus, X, TrendingUp } from 'lucide-react';
 import { getImageForCrop } from '../../utils/productImages';
 import { useTranslation } from 'react-i18next';
 
@@ -19,31 +20,24 @@ export const AddProduct: React.FC = () => {
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [suggestedPrice, setSuggestedPrice] = useState<number | null>(null);
-    const [priceRange, setPriceRange] = useState<{ min: number; max: number; count: number } | null>(null);
-    const [, setSuggestMsg] = useState('');
+    const [recommendation, setRecommendation] = useState<PriceRecommendation | null>(null);
 
     const [fetchedImage, setFetchedImage] = useState<string | null>(null);
     const [customImage, setCustomImage] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Fetch price suggestion and auto-resolve image when crop name changes
+    // Fetch price recommendation and auto-resolve image when crop name changes
     useEffect(() => {
         const timer = setTimeout(async () => {
             if (formData.cropName.trim().length >= 2) {
+                // Fetch price recommendation using new endpoint
                 try {
-                    const result = await api.products.suggestPrice(formData.cropName.trim());
-                    setSuggestedPrice(result.suggestedPrice);
-                    setSuggestMsg(result.message);
-                    if (result.minPrice != null && result.maxPrice != null && result.count) {
-                        setPriceRange({ min: result.minPrice, max: result.maxPrice, count: result.count });
-                    } else {
-                        setPriceRange(null);
-                    }
+                    const lat = user?.latitude ?? 20.5937; // fallback to India center
+                    const lng = user?.longitude ?? 78.9629;
+                    const result = await api.price.recommend(formData.cropName.trim(), lat, lng);
+                    setRecommendation(result);
                 } catch {
-                    setSuggestedPrice(null);
-                    setSuggestMsg('');
-                    setPriceRange(null);
+                    setRecommendation(null);
                 }
 
                 // Auto-resolve image: try local first, then fetch from internet
@@ -62,13 +56,12 @@ export const AddProduct: React.FC = () => {
                     }
                 }
             } else {
-                setSuggestedPrice(null);
-                setSuggestMsg('');
+                setRecommendation(null);
                 setFetchedImage(null);
             }
         }, 500);
         return () => clearTimeout(timer);
-    }, [formData.cropName, customImage]);
+    }, [formData.cropName, customImage, user?.latitude, user?.longitude]);
 
     const resolvedImage = customImage || formData.image.trim() || fetchedImage || getImageForCrop(formData.cropName || 'All');
 
@@ -242,8 +235,8 @@ export const AddProduct: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Dynamic Price Suggestion Box */}
-                        {suggestedPrice !== null && (
+                        {/* Dynamic Price Recommendation Box */}
+                        {recommendation && (recommendation.recommendedPrice !== null || recommendation.defaultPriceRange) && (
                             <div className="p-4 bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-xl">
                                 <div className="flex items-start gap-3">
                                     <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
@@ -251,21 +244,44 @@ export const AddProduct: React.FC = () => {
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-xs font-semibold text-yellow-800 uppercase tracking-wider mb-1">{t('farmer.suggested_price')}</p>
-                                        <p className="text-2xl font-bold text-green-700">₹{suggestedPrice}<span className="text-sm font-normal text-gray-500">/kg</span></p>
-                                        {priceRange && (
-                                            <p className="text-xs text-gray-500 mt-1">
-                                                Market range: ₹{priceRange.min}–₹{priceRange.max}/kg from {priceRange.count} listing{priceRange.count > 1 ? 's' : ''} within 200km
-                                            </p>
-                                        )}
-                                        <p className="text-[11px] text-gray-400 mt-1">Based on similar products near your location</p>
+                                        {recommendation.recommendedPrice !== null ? (
+                                            <>
+                                                <p className="text-2xl font-bold text-green-700">₹{recommendation.recommendedPrice}<span className="text-sm font-normal text-gray-500">/kg</span></p>
+                                                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5">
+                                                    {recommendation.marketPrice !== null && (
+                                                        <p className="text-xs text-gray-500">Market: <span className="font-medium text-gray-700">₹{recommendation.marketPrice}/kg</span></p>
+                                                    )}
+                                                    {recommendation.avgNearbyPrice !== null && (
+                                                        <p className="text-xs text-gray-500">Nearby avg: <span className="font-medium text-gray-700">₹{recommendation.avgNearbyPrice}/kg</span> ({recommendation.nearbyListingCount} listing{recommendation.nearbyListingCount > 1 ? 's' : ''})</p>
+                                                    )}
+                                                </div>
+                                                {recommendation.demandLevel !== 'unknown' && (
+                                                    <div className="flex items-center gap-1.5 mt-1.5">
+                                                        <TrendingUp className={`w-3.5 h-3.5 ${recommendation.demandLevel === 'high' ? 'text-green-600' : recommendation.demandLevel === 'medium' ? 'text-yellow-600' : 'text-red-500'}`} />
+                                                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${
+                                                            recommendation.demandLevel === 'high' ? 'bg-green-100 text-green-700' :
+                                                            recommendation.demandLevel === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                                            'bg-red-100 text-red-600'
+                                                        }`}>
+                                                            {recommendation.demandLevel.charAt(0).toUpperCase() + recommendation.demandLevel.slice(1)} demand
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </>
+                                        ) : recommendation.defaultPriceRange ? (
+                                            <p className="text-lg font-semibold text-gray-700">₹{recommendation.defaultPriceRange.min} – ₹{recommendation.defaultPriceRange.max}<span className="text-sm font-normal text-gray-500">/kg</span></p>
+                                        ) : null}
+                                        <p className="text-[11px] text-gray-400 mt-1.5">{recommendation.message}</p>
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => setFormData({ ...formData, price: suggestedPrice.toString() })}
-                                        className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors shadow-sm flex-shrink-0"
-                                    >
-                                        {t('farmer.apply_suggestion')}
-                                    </button>
+                                    {recommendation.recommendedPrice !== null && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData({ ...formData, price: recommendation.recommendedPrice!.toString() })}
+                                            className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors shadow-sm flex-shrink-0"
+                                        >
+                                            {t('farmer.apply_suggestion')}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         )}

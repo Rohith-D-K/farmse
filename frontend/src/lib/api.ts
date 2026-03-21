@@ -381,6 +381,33 @@ export const chats = {
     },
 };
 
+// Price Recommendation API
+export interface PriceRecommendation {
+    recommendedPrice: number | null;
+    avgNearbyPrice: number | null;
+    marketPrice: number | null;
+    demand: number | null;
+    demandLevel: 'high' | 'medium' | 'low' | 'unknown';
+    nearbyListingCount: number;
+    message: string;
+    defaultPriceRange?: { min: number; max: number };
+}
+
+export const price = {
+    recommend: async (cropName: string, lat: number, lng: number): Promise<PriceRecommendation> => {
+        return apiRequest<PriceRecommendation>(
+            `/api/price/recommend?cropName=${encodeURIComponent(cropName)}&lat=${lat}&lng=${lng}`
+        );
+    },
+
+    trackSearch: async (cropName: string) => {
+        return apiRequest<{ ok: boolean }>('/api/price/search-track', {
+            method: 'POST',
+            body: JSON.stringify({ cropName }),
+        });
+    },
+};
+
 export const api = {
     auth,
     products,
@@ -392,4 +419,5 @@ export const api = {
     location,
     ai,
     chats,
+    price,
 };
