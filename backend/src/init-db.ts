@@ -15,15 +15,11 @@ async function initDatabase() {
         name TEXT NOT NULL,
         phone TEXT NOT NULL,
         location TEXT NOT NULL,
-        role TEXT NOT NULL CHECK(role IN ('farmer', 'buyer', 'admin', 'retailer')),
+        role TEXT NOT NULL CHECK(role IN ('farmer', 'buyer', 'admin')),
         is_active BOOLEAN NOT NULL DEFAULT true,
         delivery_location TEXT,
         latitude DOUBLE PRECISION,
         longitude DOUBLE PRECISION,
-        retailer_status TEXT CHECK(retailer_status IN ('pending', 'verified', 'rejected')),
-        business_name TEXT,
-        business_type TEXT,
-        license_number TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -167,33 +163,6 @@ async function initDatabase() {
       )
     `);
 
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS negotiations (
-        id TEXT PRIMARY KEY,
-        harvest_id TEXT NOT NULL REFERENCES harvests(id),
-        retailer_id TEXT NOT NULL REFERENCES users(id),
-        farmer_id TEXT NOT NULL REFERENCES users(id),
-        offer_price DOUBLE PRECISION NOT NULL,
-        quantity INTEGER NOT NULL,
-        message TEXT,
-        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'accepted', 'rejected', 'counter_offer')),
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS subscriptions (
-        id TEXT PRIMARY KEY,
-        farmer_id TEXT NOT NULL REFERENCES users(id),
-        retailer_id TEXT NOT NULL REFERENCES users(id),
-        crop_name TEXT NOT NULL,
-        quantity INTEGER NOT NULL,
-        frequency TEXT NOT NULL CHECK(frequency IN ('daily', 'weekly', 'monthly')),
-        duration INTEGER NOT NULL,
-        status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'paused', 'cancelled')),
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
 
     // Seed default market prices for common Indian crops (₹ per kg)
     const defaultMarketPrices = [

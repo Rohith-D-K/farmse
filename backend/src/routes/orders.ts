@@ -419,10 +419,11 @@ export async function orderRoutes(fastify: FastifyInstance) {
     const attachProductDetails = async (rawOrders: any[]) => {
         if (rawOrders.length === 0) return [];
 
-        const productIds = [...new Set(rawOrders.map(order => order.productId))];
+        const productIds = [...new Set(rawOrders.map(order => order.productId).filter(Boolean))];
+        const harvestIds = [...new Set(rawOrders.map(order => order.harvestId).filter(Boolean))];
         
         // Fetch from products table
-        const productRows = await db
+        const productRows = productIds.length > 0 ? await db
             .select({
                 id: products.id,
                 cropName: products.cropName,
@@ -431,10 +432,10 @@ export async function orderRoutes(fastify: FastifyInstance) {
                 price: products.price
             })
             .from(products)
-            .where(inArray(products.id, productIds));
+            .where(inArray(products.id, productIds)) : [];
 
         // Fetch from harvests table (for preorders)
-        const harvestRows = await db
+        const harvestRows = harvestIds.length > 0 ? await db
             .select({
                 id: harvests.id,
                 cropName: harvests.cropName,
@@ -443,20 +444,24 @@ export async function orderRoutes(fastify: FastifyInstance) {
                 price: harvests.basePricePerKg
             })
             .from(harvests)
-            .where(inArray(harvests.id, productIds));
+            .where(inArray(harvests.id, harvestIds)) : [];
 
         const productMap = new Map();
         productRows.forEach(p => productMap.set(p.id, p));
-        harvestRows.forEach(h => productMap.set(h.id, h));
+        const harvestMap = new Map();
+        harvestRows.forEach(h => harvestMap.set(h.id, h));
 
         return rawOrders.map(order => {
-            const product = productMap.get(order.productId);
+            const product = order.productId ? productMap.get(order.productId) : null;
+            const harvest = order.harvestId ? harvestMap.get(order.harvestId) : null;
+            const item = product || harvest;
+            
             return {
                 ...order,
-                cropName: product?.cropName ?? 'Unknown Product',
-                productImage: product?.image ?? '',
-                productLocation: product?.location ?? '',
-                productUnitPrice: product?.price ?? null
+                cropName: item?.cropName ?? 'Unknown Product',
+                productImage: item?.image ?? '',
+                productLocation: item?.location ?? '',
+                productUnitPrice: item?.price ?? null
             };
         });
     };

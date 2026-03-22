@@ -15,7 +15,6 @@ export interface AuthenticatedRequest extends FastifyRequest {
         deliveryLocation: string | null;
         latitude: number | null;
         longitude: number | null;
-        retailerStatus: string | null;
     };
 }
 
@@ -79,8 +78,7 @@ export async function authenticate(
             location: user.location,
             deliveryLocation: user.deliveryLocation,
             latitude: user.latitude,
-            longitude: user.longitude,
-            retailerStatus: user.retailerStatus || null
+            longitude: user.longitude
         };
     } catch (error) {
         reply.code(500).send({ error: 'Authentication failed' });
@@ -101,31 +99,12 @@ export async function allowFarmerOnly(request: AuthenticatedRequest, reply: Fast
 }
 
 export async function allowBuyerOnly(request: AuthenticatedRequest, reply: FastifyReply) {
-    if (!request.user || request.user.role !== 'buyer') {
+    if (!request.user || (request.user.role !== 'buyer' && request.user.role !== 'retailer')) {
         reply.code(403).send({ error: 'Access denied. Buyer role required.' });
-    }
-}
-
-export async function allowRetailerOnly(request: AuthenticatedRequest, reply: FastifyReply) {
-    if (!request.user || request.user.role !== 'retailer') {
-        reply.code(403).send({ error: 'Access denied. Retailer role required.' });
-    }
-}
-
-export async function allowVerifiedRetailerOnly(request: AuthenticatedRequest, reply: FastifyReply) {
-    if (!request.user || request.user.role !== 'retailer') {
-        reply.code(403).send({ error: 'Access denied. Retailer role required.' });
-    } else if (request.user.retailerStatus !== 'verified') {
-        reply.code(403).send({ error: 'Access denied. Verified retailer status required.' });
     }
 }
 
 // Compatibility aliases
 export const requireFarmer = allowFarmerOnly;
-export const requireRetailer = allowVerifiedRetailerOnly;
-export const requireBuyerOrRetailer = async (request: AuthenticatedRequest, reply: FastifyReply) => {
-    if (!request.user || (request.user.role !== 'buyer' && request.user.role !== 'retailer')) {
-        reply.code(403).send({ error: 'Only buyers and retailers can perform this action' });
-    }
-};
-
+export const requireAdmin = allowAdminOnly;
+export const requireBuyer = allowBuyerOnly;

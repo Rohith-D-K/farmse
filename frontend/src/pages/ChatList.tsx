@@ -77,7 +77,7 @@ export const ChatList: React.FC = () => {
             return (
               <button
                 key={chat.id}
-                onClick={() => navigate(`/chat/${chat.id}`)}
+                onClick={() => navigate(`/chat/${chat.id}`, { state: { from: '/messages' } })}
                 className="w-full bg-white p-4 rounded-2xl border border-gray-100 flex items-center gap-4 hover:border-green-300 hover:shadow-md transition-all group text-left"
               >
                 <div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center text-green-700 group-hover:bg-green-600 group-hover:text-white transition-colors">

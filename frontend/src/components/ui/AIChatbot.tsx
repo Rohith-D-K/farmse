@@ -19,6 +19,7 @@ const LANG_MAP: Record<string, string> = {
 const INITIAL_SUGGESTIONS: Record<string, string[]> = {
   buyer: ['Available products', 'How to place an order?', 'Delivery options', 'Help'],
   farmer: ['Available products', 'How to add a product?', 'My orders', 'Price suggestions'],
+  retailer: ['Bulk discounts', 'Priority delivery', 'Marketplace', 'Account status'],
 };
 
 export const AIChatbot: React.FC = () => {
@@ -40,7 +41,7 @@ export const AIChatbot: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
-  const handleSendRef = useRef<(text?: string) => Promise<void>>();
+  const handleSendRef = useRef<(text?: string) => Promise<void>>(undefined);
 
   // Build welcome message based on role + language
   useEffect(() => {

@@ -250,7 +250,8 @@ export const orders = {
 export const reviews = {
     create: async (data: {
         orderId: string;
-        productId: string;
+        productId?: string;
+        harvestId?: string;
         rating: number;
         comment?: string;
     }) => {
@@ -262,6 +263,10 @@ export const reviews = {
 
     getByProduct: async (productId: string) => {
         return apiRequest<any[]>(`/api/reviews/product/${productId}`);
+    },
+
+    getFarmerReviews: async (farmerId: string) => {
+        return apiRequest<{ reviews: any[], averageRating: number, totalReviews: number }>(`/api/reviews/farmer/${farmerId}`);
     },
 };
 
@@ -326,17 +331,6 @@ export const admin = {
         return apiRequest<any[]>('/api/admin/users');
     },
 
-    getPendingRetailers: async () => {
-        return apiRequest<any[]>('/api/admin/retailers/pending');
-    },
-
-    verifyRetailer: async (id: string, status: 'verified' | 'rejected') => {
-        return apiRequest<any>(`/api/admin/retailers/${id}/verify`, {
-            method: 'POST',
-            body: JSON.stringify({ status }),
-        });
-    },
-
     deleteUser: async (id: string) => {
         return apiRequest<{ message: string; deletedUserId: string }>(`/api/admin/users/${id}`, {
             method: 'DELETE',
@@ -349,7 +343,13 @@ export const admin = {
         });
     },
 
-    updateUserRole: async (id: string, role: 'farmer' | 'buyer' | 'retailer') => {
+    activateUser: async (id: string) => {
+        return apiRequest<any>(`/api/admin/users/${id}/activate`, {
+            method: 'POST',
+        });
+    },
+
+    updateUserRole: async (id: string, role: 'farmer' | 'buyer' | 'admin') => {
         return apiRequest<any>(`/api/admin/users/${id}/role`, {
             method: 'PUT',
             body: JSON.stringify({ role }),
@@ -398,7 +398,7 @@ export const location = {
 
 // AI API
 export const ai = {
-    chat: async (message: string, language: string = 'en', role: string = 'buyer') => {
+    chat: async (message: string, language: string = 'en', role: 'buyer' | 'farmer' | 'admin' | 'retailer' = 'buyer') => {
         return apiRequest<{ response: string; type: string; suggestions?: string[] }>('/api/ai/chat', {
             method: 'POST',
             body: JSON.stringify({ message, language, role }),
@@ -484,12 +484,24 @@ export const community = {
     getDiscountTier: async (harvestId: string) => apiRequest<any>(`/api/community/${harvestId}`),
 };
 
-// Retailer API
-export const retailer = {
-    bulkOrder: async (data: any) => apiRequest<any>('/api/retailer/bulk-order', { method: 'POST', body: JSON.stringify(data) }),
-    negotiate: async (data: any) => apiRequest<any>('/api/retailer/negotiate', { method: 'POST', body: JSON.stringify(data) }),
-    subscription: async (data: any) => apiRequest<any>('/api/retailer/subscription', { method: 'POST', body: JSON.stringify(data) }),
-    getAnalytics: async () => apiRequest<any>('/api/retailer/analytics'),
+// Retailer Profile API
+export const retailerProfile = {
+    submit: async (data: {
+        businessName: string;
+        businessType: 'grocery' | 'wholesale' | 'restaurant' | 'other';
+        licenseNumber: string;
+        gstNumber?: string;
+        address: string;
+        phone: string;
+    }) => apiRequest<{ id: string; verificationStatus: string; message: string }>('/api/retailer-profile', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    }),
+    getStatus: async () => apiRequest<any>('/api/retailer-profile/me'),
+    getAdminProfiles: async () => apiRequest<any[]>('/api/admin/retailer-profiles'),
+    verify: async (id: string, adminNotes?: string) => apiRequest<any>(`/api/admin/retailer-profiles/${id}/verify`, { method: 'POST', body: JSON.stringify({ adminNotes }) }),
+    reject: async (id: string, adminNotes?: string) => apiRequest<any>(`/api/admin/retailer-profiles/${id}/reject`, { method: 'POST', body: JSON.stringify({ adminNotes }) }),
+    delete: async () => apiRequest<{ message: string }>('/api/retailer-profile/me', { method: 'DELETE' }),
 };
 
 export const api = {
@@ -506,5 +518,6 @@ export const api = {
     price,
     harvests,
     community,
-    retailer,
+    retailerProfile,
 };
+

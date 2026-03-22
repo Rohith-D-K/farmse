@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { ProductCard } from '../components/ui/ProductCard';
-import { CategoryFilter } from '../components/ui/CategoryFilter';
 import { Search, MapPin } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -27,10 +26,23 @@ export const Marketplace: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [searchParams, setSearchParams] = useSearchParams();
     const searchTerm = searchParams.get('search') || '';
-    const [selectedCategory, setSelectedCategory] = useState('All');
+    const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'All');
 
-    // Extract unique categories from products
-    const categories = Array.from(new Set(products.map(p => p.cropName)));
+    const CATEGORIES = ['All', 'Vegetables', 'Fruits', 'Grains', 'Dairy', 'Nuts', 'Greens', 'Herbs', 'Seeds', 'Organic Manure', 'Other'];
+
+    const getCategory = (cropName: string) => {
+        const name = cropName.toLowerCase();
+        if (/(almond|cashew|walnut|peanut|nut)/i.test(name)) return 'Nuts';
+        if (/(wheat|rice|corn|maize|barley|oat|grain|millet|dal|pulses)/i.test(name)) return 'Grains';
+        if (/(milk|cheese|butter|ghee|paneer|dairy|curd)/i.test(name)) return 'Dairy';
+        if (/(apple|banana|mango|grape|orange|strawberry|watermelon|lemon|fruit)/i.test(name)) return 'Fruits';
+        if (/(mint|coriander|tulsi|basil|rosemary|thyme|herb|oregano)/i.test(name)) return 'Herbs';
+        if (/(spinach|lettuce|kale|greens|leaves|celery)/i.test(name)) return 'Greens';
+        if (/(seed|mustard|cumin|fennel|sesame)/i.test(name)) return 'Seeds';
+        if (/(manure|compost|fertilizer|organic|soil|coco)/i.test(name)) return 'Organic Manure';
+        if (/(tomato|potato|onion|carrot|cabbage|cauliflower|brinjal|cucumber|okra|beans|vegetable|pepper|chilli|garlic|ginger)/i.test(name)) return 'Vegetables';
+        return 'Other';
+    };
 
     useEffect(() => {
         fetchProducts();
@@ -55,7 +67,7 @@ export const Marketplace: React.FC = () => {
     const filteredProducts = products.filter(product => {
         const matchesSearch = product.cropName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             product.location.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesCategory = selectedCategory === 'All' || product.cropName === selectedCategory;
+        const matchesCategory = selectedCategory === 'All' || getCategory(product.cropName) === selectedCategory;
         return matchesSearch && matchesCategory;
     });
 
@@ -141,17 +153,27 @@ export const Marketplace: React.FC = () => {
                     {/* Categories */}
                     <div className="space-y-2" id="tour-category-filter">
                         <h3 className="font-bold text-gray-900 text-lg px-1">{t('marketplace.all_categories')}</h3>
-                        <CategoryFilter
-                            categories={categories}
-                            activeCategory={selectedCategory}
-                            onSelect={setSelectedCategory}
-                        />
+                        <div className="flex overflow-x-auto pb-2 -mx-2 px-2 gap-2 hide-scrollbar">
+                            {CATEGORIES.map(cat => (
+                                <button
+                                    key={cat}
+                                    onClick={() => setSelectedCategory(cat)}
+                                    className={`whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                                        selectedCategory === cat 
+                                            ? 'bg-green-600 text-white shadow-md' 
+                                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    {cat}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     {/* Product Grid */}
                     <div className="space-y-2">
                         <h3 className="font-bold text-gray-900 text-lg px-1">
-                            {selectedCategory === 'All' ? t('marketplace.title') : t(`crops.${selectedCategory}`, {defaultValue: selectedCategory})}
+                            {selectedCategory === 'All' ? t('marketplace.title') : selectedCategory}
                         </h3>
                         {filteredProducts.length === 0 ? (
                             <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">

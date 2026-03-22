@@ -14,10 +14,6 @@ export const users = pgTable('users', {
     deliveryLocation: text('delivery_location'),
     latitude: doublePrecision('latitude'),
     longitude: doublePrecision('longitude'),
-    retailerStatus: text('retailer_status', { enum: ['pending', 'verified', 'rejected'] }),
-    businessName: text('business_name'),
-    businessType: text('business_type'),
-    licenseNumber: text('license_number'),
     createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
 });
 
@@ -36,7 +32,8 @@ export const products = pgTable('products', {
 // Orders table
 export const orders = pgTable('orders', {
     id: text('id').primaryKey(),
-    productId: text('product_id').notNull().references(() => products.id),
+    productId: text('product_id').references(() => products.id),
+    harvestId: text('harvest_id').references(() => harvests.id),
     farmerId: text('farmer_id').notNull().references(() => users.id),
     buyerId: text('buyer_id').notNull().references(() => users.id),
     quantity: doublePrecision('quantity').notNull(),
@@ -63,7 +60,8 @@ export const orders = pgTable('orders', {
 export const reviews = pgTable('reviews', {
     id: text('id').primaryKey(),
     orderId: text('order_id').notNull().references(() => orders.id),
-    productId: text('product_id').notNull().references(() => products.id),
+    productId: text('product_id').references(() => products.id),
+    harvestId: text('harvest_id').references(() => harvests.id),
     buyerId: text('buyer_id').notNull().references(() => users.id),
     rating: integer('rating').notNull(),
     comment: text('comment'),
@@ -160,34 +158,29 @@ export const preorders = pgTable('preorders', {
         enum: ['reserved', 'confirmed', 'delivered', 'cancelled']
     }).notNull().default('reserved'),
     isBulk: boolean('is_bulk').notNull().default(false),
+    isBulkRetailer: boolean('is_bulk_retailer').notNull().default(false),
+    retailerProfileId: text('retailer_profile_id'),
+    deliveryPriority: text('delivery_priority', { enum: ['normal', 'high'] }).notNull().default('normal'),
+    discountPercent: doublePrecision('discount_percent').notNull().default(0),
     createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
 });
 
-// Negotiations table
-export const negotiations = pgTable('negotiations', {
+// Retailer profiles table (for buyers who want bulk/retailer privileges)
+export const retailerProfiles = pgTable('retailer_profiles', {
     id: text('id').primaryKey(),
-    harvestId: text('harvest_id').notNull().references(() => harvests.id),
-    retailerId: text('retailer_id').notNull().references(() => users.id),
-    farmerId: text('farmer_id').notNull().references(() => users.id),
-    offerPrice: doublePrecision('offer_price').notNull(),
-    quantity: doublePrecision('quantity').notNull(),
-    message: text('message'),
-    status: text('status', {
-        enum: ['pending', 'accepted', 'rejected', 'counter_offer']
+    buyerId: text('buyer_id').notNull().references(() => users.id),
+    businessName: text('business_name').notNull(),
+    businessType: text('business_type', {
+        enum: ['grocery', 'wholesale', 'restaurant', 'other']
+    }).notNull(),
+    licenseNumber: text('license_number').notNull(),
+    gstNumber: text('gst_number'),
+    address: text('address').notNull(),
+    phone: text('phone').notNull(),
+    verificationStatus: text('verification_status', {
+        enum: ['pending', 'verified', 'rejected']
     }).notNull().default('pending'),
-    createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
-});
-
-// Subscriptions table
-export const subscriptions = pgTable('subscriptions', {
-    id: text('id').primaryKey(),
-    farmerId: text('farmer_id').notNull().references(() => users.id),
-    retailerId: text('retailer_id').notNull().references(() => users.id),
-    cropName: text('crop_name').notNull(),
-    quantity: doublePrecision('quantity').notNull(), // in kg
-    frequency: text('frequency', { enum: ['daily', 'weekly', 'monthly'] }).notNull(),
-    duration: integer('duration').notNull(), // in months
-    status: text('status', { enum: ['active', 'paused', 'cancelled'] }).notNull().default('active'),
+    adminNotes: text('admin_notes'),
     createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
 });
 
@@ -216,7 +209,5 @@ export type Harvest = typeof harvests.$inferSelect;
 export type NewHarvest = typeof harvests.$inferInsert;
 export type Preorder = typeof preorders.$inferSelect;
 export type NewPreorder = typeof preorders.$inferInsert;
-export type Negotiation = typeof negotiations.$inferSelect;
-export type NewNegotiation = typeof negotiations.$inferInsert;
-export type Subscription = typeof subscriptions.$inferSelect;
-export type NewSubscription = typeof subscriptions.$inferInsert;
+export type RetailerProfile = typeof retailerProfiles.$inferSelect;
+export type NewRetailerProfile = typeof retailerProfiles.$inferInsert;

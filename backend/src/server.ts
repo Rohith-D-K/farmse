@@ -15,7 +15,8 @@ import { chatRoutes } from './routes/chats';
 import { priceRoutes } from './routes/price';
 import { harvestRoutes } from './routes/harvests';
 import { communityRoutes } from './routes/community';
-import { retailerRoutes } from './routes/retailer';
+import { retailerProfileRoutes } from './routes/retailer_profile';
+import { pool } from './db/index';
 
 dotenv.config();
 
@@ -65,7 +66,8 @@ await fastify.register(chatRoutes);
 await fastify.register(priceRoutes);
 await fastify.register(harvestRoutes);
 await fastify.register(communityRoutes);
-await fastify.register(retailerRoutes);
+await fastify.register(retailerProfileRoutes);
+
 
 // Register Socket.IO
 await fastify.register(fastifySocketIO, {
@@ -97,9 +99,58 @@ fastify.ready().then(() => {
     });
 });
 
+// Run startup migrations for new columns/tables
+const runMigrations = async () => {
+    const client = await pool.connect();
+    try {
+        // Create retailer_profiles table if not exists
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS retailer_profiles (
+                id TEXT PRIMARY KEY,
+                buyer_id TEXT NOT NULL REFERENCES users(id),
+                business_name TEXT NOT NULL,
+                business_type TEXT NOT NULL,
+                license_number TEXT NOT NULL,
+                gst_number TEXT,
+                address TEXT NOT NULL,
+                phone TEXT NOT NULL,
+                verification_status TEXT NOT NULL DEFAULT 'pending',
+                admin_notes TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        // Add new columns to preorders if they don't exist
+        await client.query(`ALTER TABLE preorders ADD COLUMN IF NOT EXISTS is_bulk_retailer BOOLEAN NOT NULL DEFAULT false`);
+        await client.query(`ALTER TABLE preorders ADD COLUMN IF NOT EXISTS retailer_profile_id TEXT`);
+        await client.query(`ALTER TABLE preorders ADD COLUMN IF NOT EXISTS delivery_priority TEXT NOT NULL DEFAULT 'normal'`);
+        await client.query(`ALTER TABLE preorders ADD COLUMN IF NOT EXISTS discount_percent DOUBLE PRECISION NOT NULL DEFAULT 0`);
+
+        // Seed admin user if not exists
+        const { rows: adminRows } = await client.query(`SELECT id FROM users WHERE email = 'admin123@gmail.com' LIMIT 1`);
+        if (adminRows.length === 0) {
+            const { hashPassword, generateId } = await import('./utils/auth');
+            const adminId = generateId();
+            const adminHash = await hashPassword('admin123');
+            await client.query(
+                `INSERT INTO users (id, email, password_hash, name, phone, location, role, is_active)
+                 VALUES ($1, 'admin123@gmail.com', $2, 'Admin', '0000000000', 'HQ', 'admin', true)`,
+                [adminId, adminHash]
+            );
+            console.log('✅ Admin user seeded: admin123@gmail.com');
+        }
+
+        console.log('✅ Migrations applied successfully');
+    } catch (err) {
+        console.error('Migration error:', err);
+    } finally {
+        client.release();
+    }
+};
+
 // Start server
 const start = async () => {
     try {
+        await runMigrations();
         const port = parseInt(process.env.PORT || '3000');
         await fastify.listen({ port, host: '0.0.0.0' });
         console.log(`🚀 Server running on http://localhost:${port}`);

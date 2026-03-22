@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/api';
 import { 
@@ -40,6 +40,7 @@ interface Order {
 export const Orders: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const { t } = useTranslation();
     const { socket } = useSocket();
     const [orders, setOrders] = useState<Order[]>([]);
@@ -115,6 +116,18 @@ export const Orders: React.FC = () => {
             alert('Failed to start chat: ' + (error.message || 'Unknown error'));
         }
     };
+    const handleBack = () => {
+        const state = location.state as any;
+        if (state?.from) {
+            navigate(state.from);
+        } else {
+            if (user?.role === 'farmer') {
+                navigate('/farmer/dashboard');
+            } else {
+                navigate('/marketplace');
+            }
+        }
+    };
 
     const filteredOrders = orders.filter(order => {
         const isNotYetPaid = order.paymentStatus !== 'completed';
@@ -156,7 +169,7 @@ export const Orders: React.FC = () => {
             <div className="flex flex-col gap-6">
                 <div className="flex items-center gap-4">
                     <button 
-                        onClick={() => navigate(-1)} 
+                        onClick={handleBack} 
                         className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-100 hover:bg-gray-50 transition-colors"
                     >
                         <ArrowLeft className="w-5 h-5 text-gray-600" />
@@ -266,7 +279,7 @@ export const Orders: React.FC = () => {
                                         </div>
                                         
                                         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-                                            {(order.orderStatus === 'delivered' || order.orderStatus === 'completed' || order.paymentStatus === 'completed') && (
+                                            {user?.id !== order.farmerId && (order.orderStatus === 'delivered' || order.orderStatus === 'completed' || order.paymentStatus === 'completed') && (
                                                 <button
                                                     onClick={() => navigate('/review', { state: { order, from: '/orders' } })}
                                                     className="flex-1 sm:flex-none px-5 py-3 bg-green-50 text-green-700 text-[10px] font-black rounded-2xl hover:bg-green-100 transition-all uppercase tracking-widest shadow-sm ring-1 ring-green-100"

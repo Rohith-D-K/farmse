@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { db } from '../db/index';
 import { harvests, preorders, orders as ordersTable } from '../db/schema';
 import { eq, sql } from 'drizzle-orm';
-import { authenticate, AuthenticatedRequest, requireFarmer, requireBuyerOrRetailer } from '../middleware/auth';
+import { authenticate, AuthenticatedRequest, requireFarmer, allowBuyerOnly } from '../middleware/auth';
 import { generateId } from '../utils/auth';
 
 export async function harvestRoutes(fastify: FastifyInstance) {
@@ -88,8 +88,8 @@ export async function harvestRoutes(fastify: FastifyInstance) {
     });
 
     // POST /api/harvest/preorder
-    fastify.post('/api/harvest/preorder', { preHandler: [authenticate, requireBuyerOrRetailer] }, async (request: AuthenticatedRequest, reply) => {
-        const { harvestId, quantity, deliveryMethod } = request.body as any;
+    fastify.post('/api/harvest/preorder', { preHandler: [authenticate, allowBuyerOnly] }, async (request: AuthenticatedRequest, reply) => {
+        const { harvestId, quantity, deliveryMethod, isRetailer, retailerProfileId } = request.body as any;
         const buyerId = request.user!.id;
 
         const [harvest] = await db.select().from(harvests).where(eq(harvests.id, harvestId)).limit(1);
@@ -113,8 +113,31 @@ export async function harvestRoutes(fastify: FastifyInstance) {
             return reply.code(400).send({ error: `Minimum preorder quantity is ${harvest.minPreorderQuantity}kg` });
         }
 
+        // Compute bulk retailer discount based on quantity tiers
+        let discountPercent = 0;
+        let deliveryPriority: 'normal' | 'high' = 'normal';
+        let isBulkRetailerOrder = false;
+
+        if (isRetailer === true && quantity > 5) {
+            // Check if verified
+            const [profile] = await db.select().from(sql`retailer_profiles`)
+                .where(eq(sql`buyer_id`, buyerId))
+                .limit(1) as any[];
+            
+            if (profile && profile.verification_status === 'verified') {
+                isBulkRetailerOrder = true;
+                if (quantity > 100) discountPercent = 20;
+                else if (quantity > 50) discountPercent = 15;
+                else if (quantity > 20) discountPercent = 10;
+                else discountPercent = 5; // 5–20 kg
+                deliveryPriority = 'high';
+            }
+        }
+
+        const pricePerKg = harvest.basePricePerKg * (1 - discountPercent / 100);
+        const totalPrice = pricePerKg * quantity;
+
         const preorderId = generateId();
-        const totalPrice = harvest.basePricePerKg * quantity;
 
         await db.insert(preorders).values({
             id: preorderId,
@@ -123,20 +146,34 @@ export async function harvestRoutes(fastify: FastifyInstance) {
             quantity,
             deliveryMethod: deliveryMethod || 'buyer_pickup',
             status: 'reserved',
-            isBulk: false
+            isBulk: quantity > 5,
+            isBulkRetailer: isBulkRetailerOrder,
+            retailerProfileId: retailerProfileId || null,
+            deliveryPriority,
+            discountPercent
         });
+
 
         // Also create a unified order for tracking
         const orderId = generateId();
         const otpValue = Math.floor(1000 + Math.random() * 9000).toString();
         
         await db.execute(sql`
-            INSERT INTO orders (id, product_id, farmer_id, buyer_id, quantity, total_price, delivery_method, payment_method, payment_status, order_status, order_type, otp)
+            INSERT INTO orders (id, harvest_id, farmer_id, buyer_id, quantity, total_price, delivery_method, payment_method, payment_status, order_status, order_type, otp)
             VALUES (${orderId}, ${harvestId}, ${harvest.farmerId}, ${buyerId}, ${quantity}, ${totalPrice}, ${deliveryMethod || 'buyer_pickup'}, 'upi', 'pending', 'pending', 'preorder', ${otpValue})
         `);
 
-        return reply.send({ id: preorderId, orderId, message: 'Preorder placed successfully' });
+        return reply.send({ 
+            id: preorderId, 
+            orderId, 
+            discountPercent,
+            deliveryPriority,
+            totalPrice,
+            pricePerKg,
+            message: 'Preorder placed successfully' 
+        });
     });
+
 
     // GET /api/harvest/:id/preorders
     fastify.get('/api/harvest/:id/preorders', { preHandler: authenticate }, async (request: AuthenticatedRequest, reply) => {

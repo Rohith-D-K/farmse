@@ -14,12 +14,13 @@ import {
     ShieldAlert, 
     ShoppingBag,
     Loader2,
+    ArrowUpRight,
+    Search,
+    Star,
+    Calendar,
     ChevronRight,
     DollarSign,
-    Info,
-    Calendar,
-    ArrowUpRight,
-    Search
+    MessageSquare
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getImageForCrop } from '../../utils/productImages';
@@ -54,25 +55,32 @@ export const Dashboard: React.FC = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [harvests, setHarvests] = useState<any[]>([]);
     const [orders, setOrders] = useState<Order[]>([]);
-    const [trends, setTrends] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [productSearch, setProductSearch] = useState('');
+    const [productCategory, setProductCategory] = useState('All');
+
+    const [reviewsData, setReviewsData] = useState<{ reviews: any[], averageRating: number, totalReviews: number }>({ reviews: [], averageRating: 0, totalReviews: 0 });
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        if (user?.id) {
+            fetchData();
+        }
+    }, [user?.id]);
 
     const fetchData = async () => {
+        if (!user?.id) return;
         try {
-            const [productsData, ordersData, harvestsData, trendsData] = await Promise.all([
+            const [productsData, ordersData, harvestsData, reviewsResponse] = await Promise.all([
                 api.products.getMy(),
                 api.orders.getAll(),
                 api.harvests.getAll(),
-                api.price.getTrends()
+                api.reviews.getFarmerReviews(user.id)
             ]);
             setProducts(productsData);
             setOrders(ordersData);
-            setHarvests(harvestsData.filter((h: any) => h.farmerId === user?.id));
-            setTrends(trendsData);
+            setHarvests(harvestsData.filter((h: any) => h.farmerId === user.id));
+            setReviewsData(reviewsResponse);
+
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
         } finally {
@@ -179,9 +187,44 @@ export const Dashboard: React.FC = () => {
         .filter(o => ['accepted', 'delivered', 'completed'].includes(o.orderStatus))
         .reduce((sum, o) => sum + o.totalPrice, 0);
 
+    const handleContactBuyer = async (order: Order) => {
+        try {
+            const chat = await api.chats.start({
+                productId: order.productId,
+                farmerId: user?.id || (order as any).farmerId
+            });
+            navigate(`/chat/${chat.id}`, { state: { from: '/farmer/dashboard' } });
+        } catch (error: any) {
+            alert('Failed to start chat: ' + (error.message || 'Unknown error'));
+        }
+    };
+
     const activeListingsCount = products.filter(p => p.quantity > 0).length;
     const lowStockCount = products.filter(p => p.quantity > 0 && p.quantity < 10).length;
+    const CATEGORIES = ['All', 'Vegetables', 'Fruits', 'Grains', 'Dairy', 'Nuts', 'Greens', 'Herbs', 'Seeds', 'Organic Manure', 'Other'];
+
+    const getCategory = (cropName: string) => {
+        const name = cropName.toLowerCase();
+        if (/(almond|cashew|walnut|peanut|nut)/i.test(name)) return 'Nuts';
+        if (/(wheat|rice|corn|maize|barley|oat|grain|millet|dal|pulses)/i.test(name)) return 'Grains';
+        if (/(milk|cheese|butter|ghee|paneer|dairy|curd)/i.test(name)) return 'Dairy';
+        if (/(apple|banana|mango|grape|orange|strawberry|watermelon|lemon|fruit)/i.test(name)) return 'Fruits';
+        if (/(mint|coriander|tulsi|basil|rosemary|thyme|herb|oregano)/i.test(name)) return 'Herbs';
+        if (/(spinach|lettuce|kale|greens|leaves|celery)/i.test(name)) return 'Greens';
+        if (/(seed|mustard|cumin|fennel|sesame)/i.test(name)) return 'Seeds';
+        if (/(manure|compost|fertilizer|organic|soil|coco)/i.test(name)) return 'Organic Manure';
+        if (/(tomato|potato|onion|carrot|cabbage|cauliflower|brinjal|cucumber|okra|beans|vegetable|pepper|chilli|garlic|ginger)/i.test(name)) return 'Vegetables';
+        return 'Other';
+    };
+
     const incomingOrders = orders.filter(o => o.orderStatus === 'pending');
+
+    const filteredProducts = products.filter(p => {
+        const matchesSearch = p.cropName.toLowerCase().includes(productSearch.toLowerCase()) || 
+                              t(`crops.${p.cropName}`, {defaultValue: p.cropName}).toLowerCase().includes(productSearch.toLowerCase());
+        const matchesCategory = productCategory === 'All' || getCategory(p.cropName) === productCategory;
+        return matchesSearch && matchesCategory;
+    });
 
     if (loading) {
         return (
@@ -268,71 +311,43 @@ export const Dashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* Demand Insights & Market Trends */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Demand Insights */}
-                <div className="lg:col-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm p-8">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                            <TrendingUp className="w-6 h-6 text-green-600" />
-                            Demand Insights
-                        </h2>
-                        <span className="text-xs font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full">LIVE TRENDS</span>
+            {/* Reputation Section */}
+            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden mb-6">
+                <div className="p-6 md:p-8 flex flex-col md:flex-row gap-8 items-center md:items-start">
+                    <div className="flex flex-col items-center justify-center min-w-[200px] p-6 bg-yellow-50 rounded-3xl border border-yellow-100 text-center">
+                        <div className="flex items-center justify-center w-16 h-16 bg-white rounded-full shadow-sm mb-3">
+                            <Star className="w-8 h-8 text-yellow-500 fill-yellow-500" />
+                        </div>
+                        <p className="text-4xl font-black text-gray-900">{reviewsData.averageRating.toFixed(1)}</p>
+                        <p className="text-xs font-bold text-yellow-700 uppercase tracking-widest mt-1">Average Rating</p>
+                        <p className="text-xs text-yellow-600 mt-2 font-medium">Based on {reviewsData.totalReviews} reviews</p>
                     </div>
-                    
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-                        {trends.length > 0 ? trends.slice(0, 4).map((trend: any) => (
-                            <div key={trend.cropName} className="space-y-4">
-                                <div className="flex flex-col">
-                                    <span className="text-xs text-gray-500 font-bold uppercase">{t(`crops.${trend.cropName.toLowerCase()}`, {defaultValue: trend.cropName})}</span>
-                                    <span className="text-lg font-black text-gray-900">
-                                        {trend.level === 'high' ? 'High Demand' : trend.level === 'medium' ? 'Stable' : trend.level === 'low' ? 'Low Demand' : 'Unknown'}
-                                    </span>
-                                    <span className={`text-[10px] font-bold mt-1 inline-flex items-center gap-1 ${
-                                        trend.level === 'high' ? 'text-green-600' : trend.level === 'low' ? 'text-red-500' : 'text-blue-600'
-                                    }`}>
-                                        {trend.level === 'high' ? <><ArrowUpRight className="w-3 h-3" /> UP</> : trend.level === 'low' ? 'OVER SUPPLY' : 'BALANCED'}
-                                    </span>
-                                </div>
-                                <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
-                                    <div className={`h-full ${
-                                        trend.level === 'high' ? 'bg-green-500' : trend.level === 'low' ? 'bg-red-500' : 'bg-blue-500'
-                                    }`} style={{ width: trend.level === 'high' ? '90%' : trend.level === 'medium' ? '50%' : '20%' }}></div>
-                                </div>
-                            </div>
-                        )) : (
-                            <div className="col-span-4 py-8 text-center text-gray-400 text-sm italic">
-                                Loading market trends...
-                            </div>
+                    <div className="flex-1 w-full">
+                        <h3 className="text-lg font-black text-gray-900 mb-4 px-2">Recent Buyer Reviews</h3>
+                        {reviewsData.reviews.length === 0 ? (
+                             <p className="text-sm text-gray-400 italic px-2">No reviews yet. Complete your first successful delivery to start earning ratings!</p>
+                        ) : (
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {reviewsData.reviews.slice(0, 4).map((review) => (
+                                    <div key={review.id} className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
+                                        <div className="flex items-center justify-between mb-2">
+                                             <div className="flex items-center gap-1">
+                                                 {[1, 2, 3, 4, 5].map(star => (
+                                                     <Star key={star} className={`w-3.5 h-3.5 ${star <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'}`} />
+                                                 ))}
+                                             </div>
+                                             <span className="text-[10px] font-bold text-gray-400">{new Date(review.createdAt).toLocaleDateString()}</span>
+                                        </div>
+                                        {review.comment && <p className="text-sm text-gray-700 italic line-clamp-2">"{review.comment}"</p>}
+                                        <div className="mt-3 flex items-center justify-between">
+                                            <p className="text-[11px] font-black text-gray-900">{review.buyerName || 'Verified Buyer'}</p>
+                                            <p className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-md">{review.productName}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                             </div>
                         )}
                     </div>
-
-                    <div className="mt-8 bg-gray-50 p-4 rounded-2xl flex items-center gap-4 border border-gray-100">
-                        <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600">
-                            <Info className="w-5 h-5" />
-                        </div>
-                        <p className="text-sm text-gray-600 leading-snug">
-                            <span className="font-bold text-gray-900">AI Tip:</span> Retailers are searching for <span className="font-bold underline">Wheat</span> in bulk near your area. Consider listing your upcoming harvest early to secure preorders.
-                        </p>
-                    </div>
-                </div>
-
-                {/* Market Search / Quick Links */}
-                <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
-                    <div className="relative z-10 space-y-6">
-                        <div className="flex items-center gap-3">
-                            <Search className="w-6 h-6 opacity-75" />
-                            <h3 className="font-bold text-xl">Market Price Check</h3>
-                        </div>
-                        <p className="text-indigo-100 text-sm">Compare your prices with other farmers in a 50km radius using our AI engine.</p>
-                        <button 
-                            onClick={() => navigate('/chat/bot?q=what is the market price for onions')}
-                            className="w-full py-4 bg-white text-indigo-700 rounded-2xl font-bold text-sm hover:bg-indigo-50 transition-colors shadow-lg"
-                        >
-                            Compare Prices Now
-                        </button>
-                    </div>
-                    <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white opacity-5 rounded-full blur-3xl"></div>
                 </div>
             </div>
 
@@ -355,7 +370,9 @@ export const Dashboard: React.FC = () => {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {harvests.map((harvest) => {
-                            const preorderPercent = Math.min(100, Math.round((harvest.currentPreorderQuantity / harvest.estimatedQuantity) * 100));
+                            const estQty = harvest.estimatedQuantity || 1;
+                            const curQty = harvest.currentPreorderQuantity || 0;
+                            const preorderPercent = Math.min(100, Math.max(0, Math.round((curQty / estQty) * 100)));
                             const isProtected = preorderPercent >= 60;
 
                             return (
@@ -445,9 +462,51 @@ export const Dashboard: React.FC = () => {
 
             {/* Products List Section */}
             <div className="space-y-6">
-                <h2 className="text-2xl font-black text-gray-900 px-2">Your Products</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {products.map((product) => (
+                <div className="flex flex-col gap-4 px-2">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                        <div>
+                            <h2 className="text-2xl font-black text-gray-900 border-l-4 border-green-600 pl-3">Your Products</h2>
+                            <p className="text-gray-500 text-sm mt-1">Manage your active marketplace listings.</p>
+                        </div>
+                        <div className="relative w-full md:w-72">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Find product by name..."
+                                value={productSearch}
+                                onChange={(e) => setProductSearch(e.target.value)}
+                                className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all shadow-sm"
+                            />
+                        </div>
+                    </div>
+                    
+                    {/* Categories Row */}
+                    <div className="flex overflow-x-auto pb-2 -mx-2 px-2 gap-2 hide-scrollbar">
+                        {CATEGORIES.map(cat => (
+                            <button
+                                key={cat}
+                                onClick={() => setProductCategory(cat)}
+                                className={`whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                                    productCategory === cat 
+                                        ? 'bg-green-600 text-white shadow-md' 
+                                        : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                                }`}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {filteredProducts.length === 0 ? (
+                    <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200 shadow-sm">
+                        <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                        <h3 className="text-lg font-bold text-gray-900">No Products Found</h3>
+                        <p className="text-gray-500 text-sm mt-1">{productSearch ? 'Adjust your search filters' : 'Add your first product to start selling'}</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filteredProducts.map((product) => (
                         <div key={product.id} className="bg-white p-4 rounded-3xl border border-gray-100 flex gap-4 hover:shadow-md transition-shadow">
                             <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0">
                                 <img src={product.image || getImageForCrop(product.cropName)} alt="" className="w-full h-full object-cover" />
@@ -471,7 +530,8 @@ export const Dashboard: React.FC = () => {
                             </div>
                         </div>
                     ))}
-                </div>
+                    </div>
+                )}
             </div>
 
             {/* Recent Orders Section */}
@@ -499,7 +559,7 @@ export const Dashboard: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
-                                    {orders.slice(0, 10).map((order) => (
+                                    {orders.map((order) => (
                                         <tr key={order.id} className="hover:bg-gray-50/50 transition-colors group">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
@@ -566,11 +626,19 @@ export const Dashboard: React.FC = () => {
                                                             </button>
                                                         </div>
                                                     )}
-                                                    {['delivered', 'completed'].includes(order.orderStatus) && (
-                                                        <button onClick={() => navigate(`/orders`)} className="text-xs font-bold text-gray-400 hover:text-green-600 flex items-center gap-1">
-                                                            View Details <ChevronRight className="w-3 h-3" />
+                                                    <div className="flex flex-wrap items-center gap-2 justify-end mt-2">
+                                                        <button 
+                                                            onClick={() => handleContactBuyer(order)}
+                                                            className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold hover:bg-blue-100 flex items-center gap-1 transition-colors"
+                                                        >
+                                                            <MessageSquare className="w-3 h-3" /> Chat
                                                         </button>
-                                                    )}
+                                                        {['delivered', 'completed'].includes(order.orderStatus) && (
+                                                            <button onClick={() => navigate(`/orders`)} className="px-3 py-1 bg-gray-50 text-gray-500 rounded-lg text-[10px] font-bold hover:bg-gray-100 hover:text-green-600 flex items-center gap-1 transition-colors">
+                                                                Details <ChevronRight className="w-3 h-3" />
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </td>
                                         </tr>

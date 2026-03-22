@@ -59,6 +59,7 @@ export const Review: React.FC = () => {
             await api.reviews.create({
                 orderId: order.id,
                 productId: order.productId,
+                harvestId: order.harvestId,
                 rating,
                 comment: comment.trim() || undefined
             });

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, type PriceRecommendation } from '../../lib/api';
-import { ArrowLeft, Upload, Loader2, MapPin, DollarSign, Package, Trash2, Lightbulb, ImagePlus, X, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Loader2, DollarSign, Package, Trash2, Lightbulb, ImagePlus, X } from 'lucide-react';
 import { getImageForCrop } from '../../utils/productImages';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';

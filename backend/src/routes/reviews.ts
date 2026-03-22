@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { db } from '../db/index';
-import { reviews, orders, products } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { reviews, orders, products, users, harvests } from '../db/schema';
+import { eq, desc, or, sql } from 'drizzle-orm';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { generateId } from '../utils/auth';
 
@@ -10,9 +10,10 @@ export async function reviewRoutes(fastify: FastifyInstance) {
     fastify.post('/api/reviews', {
         preHandler: authenticate
     }, async (request: AuthenticatedRequest, reply) => {
-        const { orderId, productId, rating, comment } = request.body as {
+        const { orderId, productId, harvestId, rating, comment } = request.body as {
             orderId: string;
-            productId: string;
+            productId?: string;
+            harvestId?: string;
             rating: number;
             comment?: string;
         };
@@ -46,7 +47,8 @@ export async function reviewRoutes(fastify: FastifyInstance) {
             await db.insert(reviews).values({
                 id: reviewId,
                 orderId,
-                productId,
+                productId: productId || null,
+                harvestId: harvestId || order.harvestId || null,
                 buyerId: request.user!.id,
                 rating,
                 comment: comment || null
@@ -78,9 +80,50 @@ export async function reviewRoutes(fastify: FastifyInstance) {
             const productReviews = await db
                 .select()
                 .from(reviews)
-                .where(eq(reviews.productId, productId));
+                .where(or(
+                    eq(reviews.productId, productId),
+                    eq(reviews.harvestId, productId)
+                ));
 
             return reply.send(productReviews);
+        } catch (error: any) {
+            return reply.code(500).send({ error: error.message });
+        }
+    });
+    // Get reviews for a farmer
+    fastify.get('/api/reviews/farmer/:farmerId', async (request, reply) => {
+        const { farmerId } = request.params as { farmerId: string };
+
+        try {
+            const farmerReviews = await db
+                .select({
+                    id: reviews.id,
+                    rating: reviews.rating,
+                    comment: reviews.comment,
+                    createdAt: reviews.createdAt,
+                    productName: sql<string>`COALESCE(${products.cropName}, ${harvests.cropName})`,
+                    orderId: reviews.orderId,
+                    buyerName: users.name
+                })
+                .from(reviews)
+                .leftJoin(products, eq(reviews.productId, products.id))
+                .leftJoin(harvests, eq(reviews.harvestId, harvests.id))
+                .leftJoin(users, eq(reviews.buyerId, users.id))
+                .where(or(
+                    eq(products.farmerId, farmerId),
+                    eq(harvests.farmerId, farmerId)
+                ))
+                .orderBy(desc(reviews.createdAt));
+
+            const avgRating = farmerReviews.length > 0
+                ? farmerReviews.reduce((acc, curr) => acc + curr.rating, 0) / farmerReviews.length
+                : 0;
+
+            return reply.send({
+                reviews: farmerReviews,
+                averageRating: Number(avgRating.toFixed(1)),
+                totalReviews: farmerReviews.length
+            });
         } catch (error: any) {
             return reply.code(500).send({ error: error.message });
         }

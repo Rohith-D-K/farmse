@@ -16,7 +16,6 @@ export async function adminRoutes(fastify: FastifyInstance) {
                 totalUsers: allUsers.length,
                 totalFarmers: allUsers.filter(u => u.role === 'farmer').length,
                 totalBuyers: allUsers.filter(u => u.role === 'buyer').length,
-                totalRetailers: allUsers.filter(u => u.role === 'retailer').length,
                 totalOrders: allOrders.length,
                 totalHarvests: allHarvests.length,
             };
@@ -28,46 +27,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
         }
     });
 
-    // List Pending Retailers
-    fastify.get('/api/admin/retailers/pending', { preHandler: [authenticate, allowAdminOnly] }, async (request: AuthenticatedRequest, reply) => {
-        try {
-            const pendingRetailers = await db
-                .select()
-                .from(users)
-                .where(and(eq(users.role, 'retailer'), eq(users.retailerStatus, 'pending')));
-            
-            return reply.send(pendingRetailers);
-        } catch (error) {
-            console.error('Error fetching pending retailers:', error);
-            return reply.code(500).send({ error: 'Failed to fetch pending retailers' });
-        }
-    });
 
-    // Verify Retailer (Approve/Reject)
-    fastify.post('/api/admin/retailers/:id/verify', { preHandler: [authenticate, allowAdminOnly] }, async (request: AuthenticatedRequest, reply) => {
-        const { id } = request.params as { id: string };
-        const { status } = request.body as { status: 'verified' | 'rejected' };
-
-        if (!['verified', 'rejected'].includes(status)) {
-            return reply.code(400).send({ error: 'Invalid status' });
-        }
-
-        try {
-            const [user] = await db.select().from(users).where(eq(users.id, id)).limit(1);
-            if (!user || user.role !== 'retailer') {
-                return reply.code(404).send({ error: 'Retailer not found' });
-            }
-
-            await db.update(users)
-                .set({ retailerStatus: status })
-                .where(eq(users.id, id));
-
-            return reply.send({ message: `Retailer successfully ${status}` });
-        } catch (error) {
-            console.error('Error verifying retailer:', error);
-            return reply.code(500).send({ error: 'Failed to verify retailer' });
-        }
-    });
 
     // View All Users
     fastify.get('/api/admin/users', { preHandler: [authenticate, allowAdminOnly] }, async (request: AuthenticatedRequest, reply) => {
@@ -111,6 +71,18 @@ export async function adminRoutes(fastify: FastifyInstance) {
         } catch (error) {
             console.error('Error deactivating user:', error);
             return reply.code(500).send({ error: 'Failed to deactivate user' });
+        }
+    });
+
+    // Activate User
+    fastify.post('/api/admin/users/:id/activate', { preHandler: [authenticate, allowAdminOnly] }, async (request: AuthenticatedRequest, reply) => {
+        const { id } = request.params as { id: string };
+        try {
+            await db.update(users).set({ isActive: true }).where(eq(users.id, id));
+            return reply.send({ message: 'User activated successfully' });
+        } catch (error) {
+            console.error('Error activating user:', error);
+            return reply.code(500).send({ error: 'Failed to activate user' });
         }
     });
 }

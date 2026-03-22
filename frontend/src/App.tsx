@@ -9,7 +9,7 @@ import { Dashboard as FarmerDashboard } from './pages/farmer/Dashboard';
 import { AddProduct } from './pages/farmer/AddProduct';
 import { EditProduct } from './pages/farmer/EditProduct';
 import { EditHarvest } from './pages/farmer/EditHarvest';
-import { Dashboard as BuyerDashboard } from './pages/buyer/Dashboard';
+
 import { Marketplace } from './pages/Marketplace';
 import { ProductDetail } from './pages/ProductDetail';
 import { Checkout } from './pages/Checkout';
@@ -24,6 +24,7 @@ import { ChatRoom } from './pages/ChatRoom';
 import { ChatList } from './pages/ChatList';
 import { HarvestDetails } from './pages/HarvestDetails';
 import { OrderTracking } from './pages/OrderTracking';
+import { RetailerVerification } from './pages/admin/RetailerVerification';
 import { SocketProvider } from './contexts/SocketContext';
 
 function App() {
@@ -82,21 +83,21 @@ function App() {
               />
 
 
-              {/* Retailer Routes */}
-              <Route
-                path="/retailer/dashboard"
-                element={
-                  <ProtectedRoute requiredRole="retailer">
-                    <BuyerDashboard />
-                  </ProtectedRoute>
-                }
-              />
 
               <Route
                 path="/admin/dashboard"
                 element={
                   <ProtectedRoute requiredRole="admin">
                     <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/admin/retailer-verification"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <RetailerVerification />
                   </ProtectedRoute>
                 }
               />

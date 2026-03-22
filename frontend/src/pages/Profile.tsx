@@ -12,7 +12,7 @@ interface UserProfile {
     name: string;
     phone: string;
     location: string;
-    role: 'farmer' | 'buyer' | 'admin';
+    role: 'farmer' | 'buyer' | 'admin' | 'retailer';
     deliveryLocation?: string;
     latitude?: number | null;
     longitude?: number | null;
@@ -30,6 +30,7 @@ export const Profile: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const [profile, setProfile] = useState<UserProfile | null>(null);
+    const [retailerProfile, setRetailerProfile] = useState<any>(null);
     const [orderStats, setOrderStats] = useState<OrderStats>({ total: 0, pending: 0, completed: 0 });
     const [loading, setLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
@@ -51,7 +52,7 @@ export const Profile: React.FC = () => {
 
     const fetchProfileData = async () => {
         try {
-            const [profileData, orders] = await Promise.all([
+            const [profileData, ordersData] = await Promise.all([
                 api.users.getProfile(),
                 api.orders.getAll()
             ]);
@@ -68,11 +69,21 @@ export const Profile: React.FC = () => {
 
             // Calculate order stats
             const stats = {
-                total: orders.length,
-                pending: orders.filter((o: any) => o.orderStatus === 'pending').length,
-                completed: orders.filter((o: any) => o.orderStatus === 'completed').length
+                total: ordersData.length,
+                pending: ordersData.filter((o: any) => o.orderStatus === 'pending').length,
+                completed: ordersData.filter((o: any) => o.orderStatus === 'completed').length
             };
             setOrderStats(stats);
+
+            // Fetch retailer status if buyer or retailer
+            if (profileData.role === 'buyer' || profileData.role === 'retailer') {
+                try {
+                    const rProfile = await api.retailerProfile.getStatus();
+                    setRetailerProfile(rProfile);
+                } catch (e) {
+                    setRetailerProfile(null);
+                }
+            }
         } catch (error) {
             console.error('Error fetching profile:', error);
         } finally {
@@ -119,6 +130,20 @@ export const Profile: React.FC = () => {
     const handleLogout = async () => {
         if (confirm('Are you sure you want to logout?')) {
             await logout();
+        }
+    };
+
+    const handleConvertBackToBuyer = async () => {
+        if (!confirm('Are you sure you want to convert back to a regular buyer? Your business details will be permanently deleted.')) return;
+        try {
+            setSaving(true);
+            await api.retailerProfile.delete();
+            setRetailerProfile(null);
+            alert('You are now a normal buyer.');
+        } catch (error: any) {
+            alert(error.message || 'Failed to delete retailer profile');
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -262,8 +287,8 @@ export const Profile: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Delivery Location (Buyers only) */}
-                    {profile.role === 'buyer' && (
+                    {/* Delivery Location (Buyers/Retailers only) */}
+                    {(profile.role === 'buyer' || profile.role === 'retailer') && (
                         <div>
                             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                                 <MapPin className="w-4 h-4" />
@@ -319,10 +344,93 @@ export const Profile: React.FC = () => {
                 </div>
             </div>
 
+            {/* Retailer Status Card (Buyers/Retailers only) */}
+            {(profile.role === 'buyer' || profile.role === 'retailer') && (
+                <div className="card-premium p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-bold text-gray-900">Retailer Status</h2>
+                        <div className="flex items-center gap-2">
+                             {!retailerProfile ? (
+                                <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-bold ring-1 ring-gray-200">
+                                    Normal Buyer
+                                </span>
+                             ) : retailerProfile.verificationStatus === 'verified' ? (
+                                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold ring-1 ring-green-200 flex items-center gap-1">
+                                    <ShoppingBag className="w-3 h-3" />
+                                    Verified Retailer
+                                </span>
+                             ) : retailerProfile.verificationStatus === 'pending' ? (
+                                <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold ring-1 ring-amber-200">
+                                    Pending Verification
+                                </span>
+                             ) : (
+                                <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold ring-1 ring-red-200">
+                                    Application Rejected
+                                </span>
+                             )}
+                        </div>
+                    </div>
+
+                    {!retailerProfile ? (
+                        <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                            <p className="text-sm text-gray-600 mb-3 leading-relaxed">
+                                Are you a business owner? Register as a retailer to unlock <strong>bulk discounts (up to 20%)</strong> and <strong>priority delivery</strong> on large orders.
+                            </p>
+                            <button
+                                onClick={() => navigate('/marketplace')}
+                                className="w-full py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-colors text-sm shadow-sm"
+                            >
+                                Register on Marketplace
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Business Name</p>
+                                    <p className="text-sm font-bold text-gray-700">{retailerProfile.businessName}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</p>
+                                    <p className="text-sm font-bold text-gray-500 uppercase">{retailerProfile.businessType}</p>
+                                </div>
+                            </div>
+                            {retailerProfile.verificationStatus === 'rejected' && (
+                                <div className="p-4 bg-red-50 rounded-2xl border border-red-100">
+                                    <p className="text-xs font-bold text-red-800 uppercase mb-1">Reason for Rejection</p>
+                                    <p className="text-sm text-red-700">{retailerProfile.adminNotes || 'No notes provided by admin.'}</p>
+                                </div>
+                            )}
+                            {retailerProfile.verificationStatus === 'pending' && (
+                                <p className="text-xs text-amber-700 font-medium italic">
+                                    * Your details are being reviewed. You can still place normal orders in the meantime.
+                                </p>
+                            )}
+                            {retailerProfile.verificationStatus === 'verified' && (
+                                <p className="text-xs text-green-700 font-medium">
+                                    * You are now eligible for bulk discounts and priority delivery!
+                                </p>
+                            )}
+
+                            <div className="pt-4 border-t border-gray-100">
+                                <button
+                                    onClick={handleConvertBackToBuyer}
+                                    disabled={saving}
+                                    className="text-xs font-bold text-gray-400 hover:text-red-500 transition-colors uppercase flex items-center gap-1"
+                                >
+                                    <X className="w-3 h-3" />
+                                    Convert back to regular buyer
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Account Actions */}
             <div className="card-premium p-6">
                 <h2 className="text-lg font-bold text-gray-900 mb-4">{t('profile.account_actions')}</h2>
-                {profile.role === 'buyer' && (
+                {(profile.role === 'buyer' || profile.role === 'retailer') && (
                     <button
                         onClick={() => navigate('/help')}
                         className="w-full mb-3 flex items-center justify-center gap-2 px-6 py-3 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors font-medium"

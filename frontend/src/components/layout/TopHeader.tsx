@@ -37,6 +37,8 @@ export const TopHeader: React.FC = () => {
         setSearchTerm(searchParams.get('search') || '');
     }, [searchParams]);
 
+
+
     if (!user) return null;
 
     const handleLogout = async () => {
@@ -59,7 +61,6 @@ export const TopHeader: React.FC = () => {
                     onClick={() => {
                         if (user.role === 'admin') navigate('/admin/dashboard');
                         else if (user.role === 'farmer') navigate('/farmer/dashboard');
-                        else if (user.role === 'retailer') navigate('/retailer/dashboard');
                         else navigate('/marketplace');
                     }}
                 >
@@ -71,7 +72,7 @@ export const TopHeader: React.FC = () => {
 
                 {/* Desktop Search (Buyer only, visible on md+) */}
                 <div className="hidden md:flex flex-1 max-w-md mx-8">
-                    {user.role === 'buyer' && (
+                    {(user.role === 'buyer' || user.role === 'retailer') && (
                         <div className="relative w-full" id="tour-search-bar">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                             <input
@@ -130,7 +131,7 @@ export const TopHeader: React.FC = () => {
                         </button>
                     )}
 
-                    {user.role === 'buyer' && (
+                    {(user.role === 'buyer' || user.role === 'retailer') && (
                         <button
                             onClick={() => navigate('/checkout')}
                             className="p-2 hover:bg-gray-100 rounded-full transition-colors relative"

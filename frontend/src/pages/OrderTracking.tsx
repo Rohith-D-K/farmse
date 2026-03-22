@@ -57,7 +57,7 @@ export const OrderTracking: React.FC = () => {
                 productId: order.productId,
                 farmerId: order.farmerId || order.id
             });
-            navigate(`/chat/${chat.id}`);
+            navigate(`/chat/${chat.id}`, { state: { from: `/order-tracking/${id}` } });
         } catch (error: any) {
             alert('Failed to start chat: ' + (error.message || 'Unknown error'));
         }

@@ -12,10 +12,6 @@ export interface User {
     deliveryLocation: string | null;
     latitude: number | null;
     longitude: number | null;
-    retailerStatus?: 'pending' | 'verified' | 'rejected' | null;
-    businessName?: string | null;
-    businessType?: string | null;
-    licenseNumber?: string | null;
 }
 
 export interface AuthContextType {
@@ -30,9 +26,6 @@ export interface AuthContextType {
         deliveryLocation?: string;
         latitude?: number;
         longitude?: number;
-        businessName?: string;
-        businessType?: string;
-        licenseNumber?: string;
     }) => Promise<User>;
     logout: () => Promise<void>;
 }
@@ -66,9 +59,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         deliveryLocation?: string;
         latitude?: number;
         longitude?: number;
-        businessName?: string;
-        businessType?: string;
-        licenseNumber?: string;
     }) => {
         try {
             const newUser = await api.auth.register({
@@ -81,9 +71,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 deliveryLocation: userData.deliveryLocation || undefined,
                 latitude: userData.latitude ?? undefined,
                 longitude: userData.longitude ?? undefined,
-                businessName: userData.businessName ?? undefined,
-                businessType: userData.businessType ?? undefined,
-                licenseNumber: userData.licenseNumber ?? undefined,
             });
             setUser(newUser);
             return newUser;
