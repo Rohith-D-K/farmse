@@ -8,6 +8,7 @@ import { Register } from './pages/Register';
 import { Dashboard as FarmerDashboard } from './pages/farmer/Dashboard';
 import { AddProduct } from './pages/farmer/AddProduct';
 import { EditProduct } from './pages/farmer/EditProduct';
+import { EditHarvest } from './pages/farmer/EditHarvest';
 import { Dashboard as BuyerDashboard } from './pages/buyer/Dashboard';
 import { Marketplace } from './pages/Marketplace';
 import { ProductDetail } from './pages/ProductDetail';
@@ -22,11 +23,14 @@ import { Dashboard as AdminDashboard } from './pages/admin/Dashboard';
 import { ChatRoom } from './pages/ChatRoom';
 import { ChatList } from './pages/ChatList';
 import { HarvestDetails } from './pages/HarvestDetails';
+import { OrderTracking } from './pages/OrderTracking';
+import { SocketProvider } from './contexts/SocketContext';
 
 function App() {
   return (
     <AuthProvider>
-      <CartProvider>
+      <SocketProvider>
+        <CartProvider>
         <BrowserRouter>
           <Routes>
             {/* Public Routes */}
@@ -53,6 +57,22 @@ function App() {
                 }
               />
               <Route
+                path="/farmer/add-harvest"
+                element={
+                  <ProtectedRoute requiredRole="farmer">
+                    <AddProduct />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/farmer/edit-harvest/:id"
+                element={
+                  <ProtectedRoute requiredRole="farmer">
+                    <EditHarvest />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/farmer/edit-product/:id"
                 element={
                   <ProtectedRoute requiredRole="farmer">
@@ -61,11 +81,12 @@ function App() {
                 }
               />
 
-              {/* Buyer Routes */}
+
+              {/* Retailer Routes */}
               <Route
-                path="/buyer/dashboard"
+                path="/retailer/dashboard"
                 element={
-                  <ProtectedRoute requiredRole="buyer">
+                  <ProtectedRoute requiredRole="retailer">
                     <BuyerDashboard />
                   </ProtectedRoute>
                 }
@@ -138,6 +159,14 @@ function App() {
                 }
               />
               <Route
+                path="/order-tracking/:id"
+                element={
+                  <ProtectedRoute>
+                    <OrderTracking />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/review"
                 element={
                   <ProtectedRoute requiredRole="buyer">
@@ -185,6 +214,7 @@ function App() {
           </Routes>
         </BrowserRouter>
       </CartProvider>
+      </SocketProvider>
     </AuthProvider>
   );
 }

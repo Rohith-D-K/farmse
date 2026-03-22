@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { db } from '../db/index';
-import { orders, products, users } from '../db/schema';
+import { orders, products, users, harvests } from '../db/schema';
 import { eq, inArray } from 'drizzle-orm';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { generateId } from '../utils/auth';
@@ -420,6 +420,8 @@ export async function orderRoutes(fastify: FastifyInstance) {
         if (rawOrders.length === 0) return [];
 
         const productIds = [...new Set(rawOrders.map(order => order.productId))];
+        
+        // Fetch from products table
         const productRows = await db
             .select({
                 id: products.id,
@@ -431,7 +433,21 @@ export async function orderRoutes(fastify: FastifyInstance) {
             .from(products)
             .where(inArray(products.id, productIds));
 
-        const productMap = new Map(productRows.map(product => [product.id, product]));
+        // Fetch from harvests table (for preorders)
+        const harvestRows = await db
+            .select({
+                id: harvests.id,
+                cropName: harvests.cropName,
+                image: harvests.image,
+                location: harvests.location,
+                price: harvests.basePricePerKg
+            })
+            .from(harvests)
+            .where(inArray(harvests.id, productIds));
+
+        const productMap = new Map();
+        productRows.forEach(p => productMap.set(p.id, p));
+        harvestRows.forEach(h => productMap.set(h.id, h));
 
         return rawOrders.map(order => {
             const product = productMap.get(order.productId);
@@ -582,11 +598,12 @@ export async function orderRoutes(fastify: FastifyInstance) {
     fastify.post('/api/orders', {
         preHandler: authenticate
     }, async (request: AuthenticatedRequest, reply) => {
-        const { productId, quantity, deliveryMethod, paymentMethod } = request.body as {
+        const { productId, quantity, deliveryMethod, paymentMethod, orderType } = request.body as {
             productId: string;
             quantity: number;
             deliveryMethod: 'buyer_pickup' | 'farmer_delivery' | 'local_transport';
             paymentMethod: 'upi' | 'bank_transfer' | 'cash_on_delivery';
+            orderType?: string;
         };
 
         try {
@@ -650,6 +667,9 @@ export async function orderRoutes(fastify: FastifyInstance) {
             // Calculate total price
             const totalPrice = product.price * quantity;
 
+            // Generate OTP immediately
+            const otpValue = Math.floor(1000 + Math.random() * 9000).toString();
+
             // Create order
             const orderId = generateId();
             await db.insert(orders).values({
@@ -661,8 +681,10 @@ export async function orderRoutes(fastify: FastifyInstance) {
                 totalPrice,
                 deliveryMethod,
                 paymentMethod,
-                paymentStatus: paymentMethod === 'cash_on_delivery' ? 'pending' : 'completed',
-                orderStatus: 'pending'
+                paymentStatus: 'pending',
+                orderStatus: 'pending',
+                orderType: orderType || 'normal',
+                otp: otpValue
             });
 
             // Update product quantity
@@ -749,51 +771,182 @@ export async function orderRoutes(fastify: FastifyInstance) {
                 .where(eq(orders.id, id))
                 .limit(1);
 
+            // Notify buyer
+            (fastify as any).io.to(order.buyerId).emit('order_status_updated', {
+                orderId: id,
+                status: 'accepted'
+            });
+
             return reply.send(updatedOrder);
         } catch (error: any) {
             return reply.code(500).send({ error: error.message });
         }
     });
 
-    // Mark as delivered (farmer only)
-    fastify.put('/api/orders/:id/deliver', {
+    // Pack order (farmer only)
+    fastify.put('/api/orders/:id/pack', {
+        preHandler: authenticate
+    }, async (request: AuthenticatedRequest, reply) => {
+        const { id } = request.params as { id: string };
+        try {
+            if (request.user!.role !== 'farmer') return reply.code(403).send({ error: 'Only farmers can pack orders' });
+            const [order] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
+            if (!order) return reply.code(404).send({ error: 'Order not found' });
+            if (order.farmerId !== request.user!.id) return reply.code(403).send({ error: 'Not authorized' });
+            await db.update(orders).set({ orderStatus: 'packed' }).where(eq(orders.id, id));
+            const [updatedOrder] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
+
+            // Notify buyer
+            (fastify as any).io.to(order.buyerId).emit('order_status_updated', {
+                orderId: id,
+                status: 'packed'
+            });
+
+            return reply.send(updatedOrder);
+        } catch (error: any) {
+            return reply.code(500).send({ error: error.message });
+        }
+    });
+
+    // Ship order / Out for Delivery (farmer only)
+    fastify.put('/api/orders/:id/ship', {
+        preHandler: authenticate
+    }, async (request: AuthenticatedRequest, reply) => {
+        const { id } = request.params as { id: string };
+        try {
+            if (request.user!.role !== 'farmer') return reply.code(403).send({ error: 'Only farmers can ship orders' });
+            const [order] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
+            if (!order) return reply.code(404).send({ error: 'Order not found' });
+            if (order.farmerId !== request.user!.id) return reply.code(403).send({ error: 'Not authorized' });
+
+            // Use existing OTP or generate if missing for some reason
+            const otpCode = order.otp || Math.floor(1000 + Math.random() * 9000).toString();
+ 
+            await db.update(orders).set({
+                orderStatus: 'out_for_delivery',
+                otp: otpCode
+            }).where(eq(orders.id, id));
+ 
+            const [updatedOrder] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
+ 
+            // Notify buyer
+            (fastify as any).io.to(order.buyerId).emit('order_status_updated', {
+                orderId: id,
+                status: 'out_for_delivery',
+                otp: otpCode
+            });
+
+            return reply.send(updatedOrder);
+        } catch (error: any) {
+            return reply.code(500).send({ error: error.message });
+        }
+    });
+
+    // Verify OTP and Deliver (farmer only)
+    fastify.put('/api/orders/:id/verify-otp', {
+        preHandler: authenticate
+    }, async (request: AuthenticatedRequest, reply) => {
+        const { id } = request.params as { id: string };
+        const { otp } = request.body as { otp: string };
+
+        try {
+            if (request.user!.role !== 'farmer') return reply.code(403).send({ error: 'Only farmers can verify delivery' });
+            const [order] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
+            if (!order) return reply.code(404).send({ error: 'Order not found' });
+            if (order.farmerId !== request.user!.id) return reply.code(403).send({ error: 'Not authorized' });
+
+            if (order.otp !== otp) {
+                return reply.code(400).send({ error: 'Invalid OTP' });
+            }
+
+            await db.update(orders).set({
+                orderStatus: 'delivered',
+                paymentStatus: 'pending', // Explicitly keep as pending until buyer finalizes
+                deliveryDate: new Date().toISOString()
+            }).where(eq(orders.id, id));
+
+            const [updatedOrder] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
+
+            // Notify buyer
+            (fastify as any).io.to(order.buyerId).emit('order_status_updated', {
+                orderId: id,
+                status: 'delivered'
+            });
+
+            return reply.send(updatedOrder);
+        } catch (error: any) {
+            return reply.code(500).send({ error: error.message });
+        }
+    });
+
+    // Finalize payment (buyer only)
+    fastify.put('/api/orders/:id/finalize-payment', {
         preHandler: authenticate
     }, async (request: AuthenticatedRequest, reply) => {
         const { id } = request.params as { id: string };
 
         try {
-            if (request.user!.role !== 'farmer') {
-                return reply.code(403).send({ error: 'Only farmers can mark orders as delivered' });
+            const [order] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
+            if (!order) return reply.code(404).send({ error: 'Order not found' });
+            
+            if (order.buyerId !== request.user!.id && request.user!.role !== 'admin') {
+                return reply.code(403).send({ error: 'Only the buyer can finalize payment' });
             }
 
-            const [order] = await db
-                .select()
-                .from(orders)
-                .where(eq(orders.id, id))
-                .limit(1);
-
-            if (!order) {
-                return reply.code(404).send({ error: 'Order not found' });
+            if (order.orderStatus !== 'delivered') {
+                return reply.code(400).send({ error: 'Order must be delivered before payment finalization' });
             }
 
-            if (order.farmerId !== request.user!.id) {
+            await db.update(orders).set({
+                paymentStatus: 'completed',
+                orderStatus: 'completed'
+            }).where(eq(orders.id, id));
+
+            const [updatedOrder] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
+
+            // Notify farmer
+            (fastify as any).io.to(order.farmerId).emit('order_status_updated', {
+                orderId: id,
+                status: 'completed',
+                paymentStatus: 'completed'
+            });
+
+            return reply.send(updatedOrder);
+        } catch (error: any) {
+            return reply.code(500).send({ error: error.message });
+        }
+    });
+
+    // Cancel order (buyer or farmer depending on status)
+    fastify.put('/api/orders/:id/cancel', {
+        preHandler: authenticate
+    }, async (request: AuthenticatedRequest, reply) => {
+        const { id } = request.params as { id: string };
+        try {
+            const [order] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
+            if (!order) return reply.code(404).send({ error: 'Order not found' });
+
+            // Only allow cancellation if not yet shipped
+            if (['out_for_delivery', 'delivered'].includes(order.orderStatus)) {
+                return reply.code(400).send({ error: 'Cannot cancel order after it has been shipped or delivered' });
+            }
+
+            if (order.buyerId !== request.user!.id && order.farmerId !== request.user!.id) {
                 return reply.code(403).send({ error: 'Not authorized' });
             }
 
-            const orderUpdate = order.paymentMethod === 'cash_on_delivery'
-                ? { orderStatus: 'delivered' as const, paymentStatus: 'completed' as const }
-                : { orderStatus: 'delivered' as const };
+            await db.update(orders).set({ orderStatus: 'cancelled' }).where(eq(orders.id, id));
+            const [updatedOrder] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
 
-            await db
-                .update(orders)
-                .set(orderUpdate)
-                .where(eq(orders.id, id));
-
-            const [updatedOrder] = await db
-                .select()
-                .from(orders)
-                .where(eq(orders.id, id))
-                .limit(1);
+            // Notify parties
+            (fastify as any).io.to(order.buyerId).emit('order_status_updated', {
+                orderId: id,
+                status: 'cancelled'
+            });
+            (fastify as any).io.to(order.farmerId).emit('order_status_updated', {
+                orderId: id,
+                status: 'cancelled'
+            });
 
             return reply.send(updatedOrder);
         } catch (error: any) {

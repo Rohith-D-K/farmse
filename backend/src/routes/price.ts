@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import {
     calculateRecommendedPrice,
     recordCropSearch,
+    getDemandInfo,
 } from '../services/priceRecommendation';
 
 export async function priceRoutes(fastify: FastifyInstance) {
@@ -38,6 +39,32 @@ export async function priceRoutes(fastify: FastifyInstance) {
                 lng: longitude,
             });
             return reply.send(result);
+        } catch (error: any) {
+            return reply.code(500).send({ error: error.message });
+        }
+    });
+
+    /**
+     * GET /api/price/trends
+     *
+     * Returns demand trends for top crops.
+     */
+    fastify.get('/api/price/trends', async (_request, reply) => {
+        const commonCrops = ['Onion', 'Potato', 'Tomato', 'Rice', 'Wheat', 'Carrot', 'Cabbage'];
+        try {
+            const trends = await Promise.all(
+                commonCrops.map(async (crop) => {
+                    const info = await getDemandInfo(crop);
+                    return {
+                        cropName: crop,
+                        level: info.level,
+                        ratio: info.ratio,
+                        searchCount: info.searchCount,
+                        listingCount: info.listingCount
+                    };
+                })
+            );
+            return reply.send(trends);
         } catch (error: any) {
             return reply.code(500).send({ error: error.message });
         }

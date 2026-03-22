@@ -182,6 +182,7 @@ export const orders = {
         quantity: number;
         deliveryMethod: 'buyer_pickup' | 'farmer_delivery' | 'local_transport';
         paymentMethod: 'upi' | 'bank_transfer' | 'cash_on_delivery';
+        orderType?: string;
     }) => {
         return apiRequest<any>('/api/orders', {
             method: 'POST',
@@ -195,8 +196,33 @@ export const orders = {
         });
     },
 
-    deliver: async (id: string) => {
-        return apiRequest<any>(`/api/orders/${id}/deliver`, {
+    pack: async (id: string) => {
+        return apiRequest<any>(`/api/orders/${id}/pack`, {
+            method: 'PUT',
+        });
+    },
+
+    ship: async (id: string) => {
+        return apiRequest<any>(`/api/orders/${id}/ship`, {
+            method: 'PUT',
+        });
+    },
+
+    verifyOtp: async (id: string, otp: string) => {
+        return apiRequest<any>(`/api/orders/${id}/verify-otp`, {
+            method: 'PUT',
+            body: JSON.stringify({ otp }),
+        });
+    },
+
+    cancel: async (id: string) => {
+        return apiRequest<any>(`/api/orders/${id}/cancel`, {
+            method: 'PUT',
+        });
+    },
+
+    finalizePayment: async (id: string) => {
+        return apiRequest<any>(`/api/orders/${id}/finalize-payment`, {
             method: 'PUT',
         });
     },
@@ -292,8 +318,23 @@ export const admin = {
         return apiRequest<any>('/api/admin/overview');
     },
 
+    getStats: async () => {
+        return apiRequest<any>('/api/admin/stats');
+    },
+
     getUsers: async () => {
         return apiRequest<any[]>('/api/admin/users');
+    },
+
+    getPendingRetailers: async () => {
+        return apiRequest<any[]>('/api/admin/retailers/pending');
+    },
+
+    verifyRetailer: async (id: string, status: 'verified' | 'rejected') => {
+        return apiRequest<any>(`/api/admin/retailers/${id}/verify`, {
+            method: 'POST',
+            body: JSON.stringify({ status }),
+        });
     },
 
     deleteUser: async (id: string) => {
@@ -302,7 +343,13 @@ export const admin = {
         });
     },
 
-    updateUserRole: async (id: string, role: 'farmer' | 'buyer') => {
+    deactivateUser: async (id: string) => {
+        return apiRequest<any>(`/api/admin/users/${id}/deactivate`, {
+            method: 'POST',
+        });
+    },
+
+    updateUserRole: async (id: string, role: 'farmer' | 'buyer' | 'retailer') => {
         return apiRequest<any>(`/api/admin/users/${id}/role`, {
             method: 'PUT',
             body: JSON.stringify({ role }),
@@ -412,6 +459,10 @@ export const price = {
             body: JSON.stringify({ cropName }),
         });
     },
+
+    getTrends: async () => {
+        return apiRequest<any[]>('/api/price/trends');
+    },
 };
 
 // Harvest API
@@ -424,6 +475,7 @@ export const harvests = {
     getStats: async (id: string) => apiRequest<any>(`/api/harvest/${id}/stats`),
     cancel: async (id: string) => apiRequest<{ message: string }>(`/api/harvest/${id}/cancel`, { method: 'POST' }),
     cancelPreorder: async (id: string) => apiRequest<{ message: string }>(`/api/harvest/preorder/${id}/cancel`, { method: 'POST' }),
+    update: async (id: string, data: any) => apiRequest<any>(`/api/harvest/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: async (id: string) => apiRequest<{ message: string }>(`/api/harvest/${id}`, { method: 'DELETE' }),
 };
 

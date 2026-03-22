@@ -45,6 +45,8 @@ export const Login: React.FC = () => {
                 navigate('/admin/dashboard');
             } else if (user.role === 'farmer') {
                 navigate('/farmer/dashboard');
+            } else if (user.role === 'retailer') {
+                navigate('/retailer/dashboard');
             } else {
                 navigate('/marketplace');
             }

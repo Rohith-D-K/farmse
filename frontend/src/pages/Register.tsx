@@ -103,6 +103,8 @@ export const Register: React.FC = () => {
                 navigate('/farmer/dashboard');
             } else if (user.role === 'admin') {
                 navigate('/admin/dashboard');
+            } else if (user.role === 'retailer') {
+                navigate('/retailer/dashboard');
             } else {
                 navigate('/marketplace');
             }

@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { db } from '../db/index';
-import { harvests, preorders } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { harvests, preorders, orders as ordersTable } from '../db/schema';
+import { eq, sql } from 'drizzle-orm';
 import { authenticate, AuthenticatedRequest, requireFarmer, requireBuyerOrRetailer } from '../middleware/auth';
 import { generateId } from '../utils/auth';
 
@@ -113,9 +113,11 @@ export async function harvestRoutes(fastify: FastifyInstance) {
             return reply.code(400).send({ error: `Minimum preorder quantity is ${harvest.minPreorderQuantity}kg` });
         }
 
-        const id = generateId();
+        const preorderId = generateId();
+        const totalPrice = harvest.basePricePerKg * quantity;
+
         await db.insert(preorders).values({
-            id,
+            id: preorderId,
             harvestId,
             buyerId,
             quantity,
@@ -124,7 +126,16 @@ export async function harvestRoutes(fastify: FastifyInstance) {
             isBulk: false
         });
 
-        return reply.send({ id, message: 'Preorder placed successfully' });
+        // Also create a unified order for tracking
+        const orderId = generateId();
+        const otpValue = Math.floor(1000 + Math.random() * 9000).toString();
+        
+        await db.execute(sql`
+            INSERT INTO orders (id, product_id, farmer_id, buyer_id, quantity, total_price, delivery_method, payment_method, payment_status, order_status, order_type, otp)
+            VALUES (${orderId}, ${harvestId}, ${harvest.farmerId}, ${buyerId}, ${quantity}, ${totalPrice}, ${deliveryMethod || 'buyer_pickup'}, 'upi', 'pending', 'pending', 'preorder', ${otpValue})
+        `);
+
+        return reply.send({ id: preorderId, orderId, message: 'Preorder placed successfully' });
     });
 
     // GET /api/harvest/:id/preorders
@@ -254,5 +265,55 @@ export async function harvestRoutes(fastify: FastifyInstance) {
         
         await db.delete(harvests).where(eq(harvests.id, id));
         return reply.send({ message: 'Harvest deleted successfully' });
+    });
+
+    // PUT /api/harvest/:id
+    fastify.put('/api/harvest/:id', { preHandler: [authenticate, requireFarmer] }, async (request: AuthenticatedRequest, reply) => {
+        const { id } = request.params as { id: string };
+        const farmerId = request.user!.id;
+        const body = request.body as any;
+
+        const [harvest] = await db.select().from(harvests).where(eq(harvests.id, id)).limit(1);
+        if (!harvest) return reply.code(404).send({ error: 'Harvest not found' });
+        
+        if (harvest.farmerId !== farmerId && request.user!.role !== 'admin') {
+            return reply.code(403).send({ error: 'Unauthorized to edit this harvest' });
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const expectedDate = new Date(body.expectedHarvestDate);
+        const deadlineDate = new Date(body.preorderDeadline);
+        
+        const diffDaysExpected = (expectedDate.getTime() - today.getTime()) / (1000 * 3600 * 24);
+        if (diffDaysExpected < 7 || diffDaysExpected > 60) {
+            return reply.code(400).send({ error: 'Expected harvest date must be between 7 and 60 days from today' });
+        }
+
+        const diffDaysDeadline = (expectedDate.getTime() - deadlineDate.getTime()) / (1000 * 3600 * 24);
+        if (diffDaysDeadline < 7) {
+            return reply.code(400).send({ error: 'Preorder deadline must be at least 7 days before the expected harvest date' });
+        }
+
+        if (body.minPreorderQuantity > body.estimatedQuantity) {
+            return reply.code(400).send({ error: 'Min preorder quantity cannot exceed estimated quantity' });
+        }
+
+        await db.update(harvests).set({
+            cropName: body.cropName,
+            expectedHarvestDate: body.expectedHarvestDate,
+            estimatedQuantity: body.estimatedQuantity,
+            basePricePerKg: body.basePricePerKg,
+            minPreorderQuantity: body.minPreorderQuantity,
+            preorderDeadline: body.preorderDeadline,
+            location: body.location,
+            latitude: body.latitude,
+            longitude: body.longitude,
+            description: body.description,
+            image: body.image
+        }).where(eq(harvests.id, id));
+        
+        return reply.send({ message: 'Harvest updated successfully' });
     });
 }

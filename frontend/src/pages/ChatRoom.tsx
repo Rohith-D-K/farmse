@@ -124,6 +124,18 @@ export const ChatRoom: React.FC = () => {
     }
   };
 
+  const handleBack = () => {
+    // Priority: 1. State 'from', 2. History, 3. Default
+    const from = (location as any).state?.from;
+    if (from) {
+      navigate(from);
+    } else if (window.history.length > 2) {
+      navigate(-1);
+    } else {
+      navigate('/messages');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -136,7 +148,7 @@ export const ChatRoom: React.FC = () => {
     <div className="flex flex-col h-[calc(100vh-12rem)] md:h-[calc(100vh-8rem)] bg-gray-50 -mx-4 -mt-4 md:mx-0 md:mt-0 md:rounded-2xl md:border md:border-gray-200 overflow-hidden">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 p-4 flex items-center gap-4 sticky top-0 z-10 shadow-sm">
-        <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+        <button onClick={handleBack} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
           <ArrowLeft className="w-5 h-5 text-gray-600" />
         </button>
         <div className="flex-1 flex items-center gap-3">

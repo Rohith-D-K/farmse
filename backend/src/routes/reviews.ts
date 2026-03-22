@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { db } from '../db/index';
-import { reviews, orders } from '../db/schema';
+import { reviews, orders, products } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { generateId } from '../utils/auth';
@@ -37,8 +37,8 @@ export async function reviewRoutes(fastify: FastifyInstance) {
                 return reply.code(403).send({ error: 'Not authorized' });
             }
 
-            if (order.orderStatus !== 'delivered') {
-                return reply.code(400).send({ error: 'Can only review delivered orders' });
+            if (order.orderStatus !== 'delivered' && order.orderStatus !== 'completed') {
+                return reply.code(400).send({ error: 'Can only review delivered or completed orders' });
             }
 
             // Create review

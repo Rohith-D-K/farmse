@@ -88,24 +88,44 @@ export async function authenticate(
 }
 
 // Role-based auth middleware
-export async function requireFarmer(request: AuthenticatedRequest, reply: FastifyReply) {
+export async function allowAdminOnly(request: AuthenticatedRequest, reply: FastifyReply) {
+    if (!request.user || request.user.role !== 'admin') {
+        reply.code(403).send({ error: 'Access denied. Admin role required.' });
+    }
+}
+
+export async function allowFarmerOnly(request: AuthenticatedRequest, reply: FastifyReply) {
     if (!request.user || request.user.role !== 'farmer') {
-        reply.code(403).send({ error: 'Only farmers can perform this action' });
-        // NOTE: we don't throw, Fastify intercepts the reply code
+        reply.code(403).send({ error: 'Access denied. Farmer role required.' });
     }
 }
 
-export async function requireRetailer(request: AuthenticatedRequest, reply: FastifyReply) {
+export async function allowBuyerOnly(request: AuthenticatedRequest, reply: FastifyReply) {
+    if (!request.user || request.user.role !== 'buyer') {
+        reply.code(403).send({ error: 'Access denied. Buyer role required.' });
+    }
+}
+
+export async function allowRetailerOnly(request: AuthenticatedRequest, reply: FastifyReply) {
     if (!request.user || request.user.role !== 'retailer') {
-        reply.code(403).send({ error: 'Only retailers can perform this action' });
-    } else if (request.user.retailerStatus !== 'verified') {
-        reply.code(403).send({ error: 'Your retailer account is currently pending verification. Admin approval is required.' });
+        reply.code(403).send({ error: 'Access denied. Retailer role required.' });
     }
 }
 
-export async function requireBuyerOrRetailer(request: AuthenticatedRequest, reply: FastifyReply) {
+export async function allowVerifiedRetailerOnly(request: AuthenticatedRequest, reply: FastifyReply) {
+    if (!request.user || request.user.role !== 'retailer') {
+        reply.code(403).send({ error: 'Access denied. Retailer role required.' });
+    } else if (request.user.retailerStatus !== 'verified') {
+        reply.code(403).send({ error: 'Access denied. Verified retailer status required.' });
+    }
+}
+
+// Compatibility aliases
+export const requireFarmer = allowFarmerOnly;
+export const requireRetailer = allowVerifiedRetailerOnly;
+export const requireBuyerOrRetailer = async (request: AuthenticatedRequest, reply: FastifyReply) => {
     if (!request.user || (request.user.role !== 'buyer' && request.user.role !== 'retailer')) {
         reply.code(403).send({ error: 'Only buyers and retailers can perform this action' });
     }
-}
+};
 

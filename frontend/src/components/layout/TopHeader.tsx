@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
-import { LogOut, Search, ShoppingCart, User, Globe, MessageSquare } from 'lucide-react';
+import { LogOut, Search, ShoppingCart, User, Globe, MessageSquare, ListOrdered } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const LANGUAGES = [
@@ -56,7 +56,12 @@ export const TopHeader: React.FC = () => {
                 {/* Logo & Brand */}
                 <div
                     className="flex items-center gap-2 cursor-pointer"
-                    onClick={() => navigate(user.role === 'admin' ? '/admin/dashboard' : user.role === 'farmer' ? '/farmer/dashboard' : '/marketplace')}
+                    onClick={() => {
+                        if (user.role === 'admin') navigate('/admin/dashboard');
+                        else if (user.role === 'farmer') navigate('/farmer/dashboard');
+                        else if (user.role === 'retailer') navigate('/retailer/dashboard');
+                        else navigate('/marketplace');
+                    }}
                 >
                     <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center text-white font-bold text-lg">
                         F
@@ -107,7 +112,6 @@ export const TopHeader: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Messages - hidden on mobile since BottomNav has Chats */}
                     <button
                         onClick={() => navigate('/messages')}
                         className="hidden sm:block p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -115,6 +119,16 @@ export const TopHeader: React.FC = () => {
                     >
                         <MessageSquare className="w-5 h-5 text-gray-600" />
                     </button>
+
+                    {(user.role === 'buyer' || user.role === 'retailer') && (
+                        <button
+                            onClick={() => navigate('/orders')}
+                            className="hidden sm:block p-2 hover:bg-gray-100 rounded-full transition-colors"
+                            title="My Orders"
+                        >
+                            <ListOrdered className="w-5 h-5 text-gray-600" />
+                        </button>
+                    )}
 
                     {user.role === 'buyer' && (
                         <button

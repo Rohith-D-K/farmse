@@ -93,7 +93,9 @@ export const HarvestDetails: React.FC = () => {
     const isDeadlinePassed = new Date() > new Date(harvest.preorderDeadline);
 
     const handleBack = () => {
-        if (window.history?.length > 2) {
+        if (user?.role === 'farmer' && String(harvest?.farmerId) === String(user?.id)) {
+            navigate('/farmer/dashboard');
+        } else if (window.history?.length > 2) {
             navigate(-1);
         } else {
             navigate('/marketplace');

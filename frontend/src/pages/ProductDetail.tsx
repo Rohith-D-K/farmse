@@ -59,7 +59,7 @@ export const ProductDetail: React.FC = () => {
                 productId: product.id,
                 farmerId: product.farmerId,
             });
-            navigate(`/chat/${chat.id}`);
+            navigate(`/chat/${chat.id}`, { state: { from: `/product/${product.id}` } });
         } catch (error) {
             console.error('Failed to start chat:', error);
         }
@@ -75,6 +75,16 @@ export const ProductDetail: React.FC = () => {
         addToCart(product, quantity);
         setShowMessage(true);
         setTimeout(() => setShowMessage(false), 2000);
+    };
+
+    const handleBack = () => {
+        if (user?.role === 'farmer' && String(product?.farmerId) === String(user?.id)) {
+            navigate('/farmer/dashboard');
+        } else if (window.history?.length > 2) {
+            navigate(-1);
+        } else {
+            navigate('/marketplace');
+        }
     };
 
     if (loading) {
@@ -103,7 +113,7 @@ export const ProductDetail: React.FC = () => {
             {/* Header Actions (Floating on mobile) */}
             <div className="fixed top-0 left-0 right-0 z-20 p-4 flex justify-between items-start md:hidden pointer-events-none">
                 <button
-                    onClick={() => navigate(-1)}
+                    onClick={handleBack}
                     className="w-10 h-10 bg-white/80 backdrop-blur pointer-events-auto rounded-full flex items-center justify-center shadow-lg text-gray-700 active:scale-95 transition-transform"
                 >
                     <ArrowLeft className="w-5 h-5" />

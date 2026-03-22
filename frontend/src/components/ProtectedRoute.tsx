@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 interface ProtectedRouteProps {
     children: React.ReactNode;
-    requiredRole?: 'farmer' | 'buyer' | 'admin';
+    requiredRole?: 'farmer' | 'buyer' | 'admin' | 'retailer';
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
@@ -30,6 +30,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
 
         if (user.role === 'farmer') {
             return <Navigate to="/farmer/dashboard" replace />;
+        }
+
+        if (user.role === 'retailer') {
+            return <Navigate to="/retailer/dashboard" replace />;
         }
 
         return <Navigate to="/marketplace" replace />;

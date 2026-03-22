@@ -27,13 +27,13 @@ export const BottomNav: React.FC = () => {
     const iconClass = "w-6 h-6";
     const labelClass = "text-[10px] font-medium";
 
-    if (user.role === 'buyer') {
+    if (user.role === 'buyer' || user.role === 'retailer') {
         return (
             <div className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-gray-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-50 md:hidden">
                 <div className="grid grid-cols-5 h-full">
-                    <button onClick={() => navigate('/marketplace')} className={navItemClass(isActive('/marketplace'))}>
+                    <button onClick={() => navigate(user.role === 'retailer' ? '/retailer/dashboard' : '/marketplace')} className={navItemClass(isActive('/marketplace') || isActive('/retailer/dashboard'))}>
                         <Store className={iconClass} />
-                        <span className={labelClass}>{t('common.marketplace')}</span>
+                        <span className={labelClass}>{user.role === 'retailer' ? 'Home' : t('common.marketplace')}</span>
                     </button>
                     <button id="tour-orders-btn" onClick={() => navigate('/orders')} className={navItemClass(isActive('/orders'))}>
                         <ShoppingBag className={iconClass} />

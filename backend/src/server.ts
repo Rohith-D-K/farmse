@@ -86,6 +86,11 @@ fastify.ready().then(() => {
             console.log(`Socket ${socket.id} joined chat ${chatId}`);
         });
 
+        socket.on('join_user_room', (userId: string) => {
+            socket.join(userId);
+            console.log(`Socket ${socket.id} joined user room ${userId}`);
+        });
+
         socket.on('disconnect', () => {
             console.log('Socket disconnected:', socket.id);
         });

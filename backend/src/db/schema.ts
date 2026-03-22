@@ -27,7 +27,7 @@ export const products = pgTable('products', {
     farmerId: text('farmer_id').notNull().references(() => users.id),
     cropName: text('crop_name').notNull(),
     price: doublePrecision('price').notNull(),
-    quantity: integer('quantity').notNull(),
+    quantity: doublePrecision('quantity').notNull(),
     location: text('location').notNull(),
     image: text('image').notNull(),
     createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
@@ -39,7 +39,7 @@ export const orders = pgTable('orders', {
     productId: text('product_id').notNull().references(() => products.id),
     farmerId: text('farmer_id').notNull().references(() => users.id),
     buyerId: text('buyer_id').notNull().references(() => users.id),
-    quantity: integer('quantity').notNull(),
+    quantity: doublePrecision('quantity').notNull(),
     totalPrice: doublePrecision('total_price').notNull(),
     deliveryMethod: text('delivery_method', {
         enum: ['buyer_pickup', 'farmer_delivery', 'local_transport']
@@ -48,11 +48,14 @@ export const orders = pgTable('orders', {
         enum: ['upi', 'bank_transfer', 'cash_on_delivery']
     }).notNull(),
     paymentStatus: text('payment_status', {
-        enum: ['pending', 'completed']
-    }).notNull().default('completed'),
-    orderStatus: text('order_status', {
-        enum: ['pending', 'accepted', 'delivered', 'completed', 'rejected']
+        enum: ['pending', 'completed', 'failed']
     }).notNull().default('pending'),
+    orderStatus: text('order_status', {
+        enum: ['pending', 'accepted', 'packed', 'out_for_delivery', 'delivered', 'cancelled', 'completed', 'rejected']
+    }).notNull().default('pending'),
+    otp: text('otp'),
+    deliveryDate: text('delivery_date'),
+    orderType: text('order_type').notNull().default('normal'),
     createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
 });
 
@@ -131,9 +134,9 @@ export const harvests = pgTable('harvests', {
     farmerId: text('farmer_id').notNull().references(() => users.id),
     cropName: text('crop_name').notNull(),
     expectedHarvestDate: text('expected_harvest_date').notNull(),
-    estimatedQuantity: integer('estimated_quantity').notNull(), // in kg
+    estimatedQuantity: doublePrecision('estimated_quantity').notNull(), // in kg
     basePricePerKg: doublePrecision('base_price_per_kg').notNull(),
-    minPreorderQuantity: integer('min_preorder_quantity').notNull(),
+    minPreorderQuantity: doublePrecision('min_preorder_quantity').notNull(),
     preorderDeadline: text('preorder_deadline').notNull(),
     location: text('location').notNull(),
     latitude: doublePrecision('latitude'),
@@ -149,7 +152,7 @@ export const preorders = pgTable('preorders', {
     id: text('id').primaryKey(),
     harvestId: text('harvest_id').notNull().references(() => harvests.id),
     buyerId: text('buyer_id').notNull().references(() => users.id),
-    quantity: integer('quantity').notNull(), // in kg
+    quantity: doublePrecision('quantity').notNull(), // in kg
     deliveryMethod: text('delivery_method', {
         enum: ['buyer_pickup', 'farmer_delivery', 'local_transport']
     }).notNull(),
@@ -167,7 +170,7 @@ export const negotiations = pgTable('negotiations', {
     retailerId: text('retailer_id').notNull().references(() => users.id),
     farmerId: text('farmer_id').notNull().references(() => users.id),
     offerPrice: doublePrecision('offer_price').notNull(),
-    quantity: integer('quantity').notNull(),
+    quantity: doublePrecision('quantity').notNull(),
     message: text('message'),
     status: text('status', {
         enum: ['pending', 'accepted', 'rejected', 'counter_offer']
@@ -181,7 +184,7 @@ export const subscriptions = pgTable('subscriptions', {
     farmerId: text('farmer_id').notNull().references(() => users.id),
     retailerId: text('retailer_id').notNull().references(() => users.id),
     cropName: text('crop_name').notNull(),
-    quantity: integer('quantity').notNull(), // in kg
+    quantity: doublePrecision('quantity').notNull(), // in kg
     frequency: text('frequency', { enum: ['daily', 'weekly', 'monthly'] }).notNull(),
     duration: integer('duration').notNull(), // in months
     status: text('status', { enum: ['active', 'paused', 'cancelled'] }).notNull().default('active'),
