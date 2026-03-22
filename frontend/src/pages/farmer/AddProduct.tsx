@@ -11,12 +11,16 @@ export const AddProduct: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { t } = useTranslation();
+    const [postType, setPostType] = useState<'product' | 'harvest'>('product');
     const [formData, setFormData] = useState({
         cropName: '',
         price: '',
         quantity: '',
         location: user?.location || '',
-        image: ''
+        image: '',
+        expectedHarvestDate: '',
+        minPreorderQuantity: '',
+        preorderDeadline: ''
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -81,22 +85,53 @@ export const AddProduct: React.FC = () => {
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
+    // Calculate Dynamic Date Limits
+    const todayStr = new Date().toISOString().split('T')[0];
+    const minHarvestDate = new Date();
+    minHarvestDate.setDate(minHarvestDate.getDate() + 7);
+    const minHarvestStr = minHarvestDate.toISOString().split('T')[0];
+
+    const maxHarvestDate = new Date();
+    maxHarvestDate.setDate(maxHarvestDate.getDate() + 30);
+    const maxHarvestStr = maxHarvestDate.toISOString().split('T')[0];
+
+    let maxDeadlineStr = '';
+    if (formData.expectedHarvestDate) {
+        const expDate = new Date(formData.expectedHarvestDate);
+        expDate.setDate(expDate.getDate() - 7);
+        maxDeadlineStr = expDate.toISOString().split('T')[0];
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setLoading(true);
 
         try {
-            await api.products.create({
-                cropName: formData.cropName,
-                price: parseFloat(formData.price),
-                quantity: parseInt(formData.quantity),
-                location: formData.location,
-                image: customImage || formData.image.trim() || fetchedImage || getImageForCrop(formData.cropName || 'All')
-            });
+            if (postType === 'product') {
+                await api.products.create({
+                    cropName: formData.cropName,
+                    price: parseFloat(formData.price),
+                    quantity: parseInt(formData.quantity),
+                    location: formData.location,
+                    image: customImage || formData.image.trim() || fetchedImage || getImageForCrop(formData.cropName || 'All')
+                });
+            } else {
+                await api.harvests.create({
+                    cropName: formData.cropName,
+                    basePricePerKg: parseFloat(formData.price),
+                    estimatedQuantity: parseInt(formData.quantity),
+                    location: formData.location,
+                    image: customImage || formData.image.trim() || fetchedImage || getImageForCrop(formData.cropName || 'All'),
+                    expectedHarvestDate: formData.expectedHarvestDate,
+                    minPreorderQuantity: parseInt(formData.minPreorderQuantity),
+                    preorderDeadline: formData.preorderDeadline,
+                    description: `Upcoming harvest of ${formData.cropName}`
+                });
+            }
             navigate('/farmer/dashboard');
         } catch (err: any) {
-            setError(err.message || 'Failed to add product');
+            setError(err.message || 'Failed to add listing');
         } finally {
             setLoading(false);
         }
@@ -119,6 +154,22 @@ export const AddProduct: React.FC = () => {
             </div>
 
             <div className="card-premium p-6">
+                {/* Post Type Toggle */}
+                <div className="flex bg-gray-100 p-1 rounded-xl w-full mb-6">
+                    <button
+                        onClick={() => setPostType('product')}
+                        className={`flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-all ${postType === 'product' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        Regular Listing
+                    </button>
+                    <button
+                        onClick={() => setPostType('harvest')}
+                        className={`flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-all ${postType === 'harvest' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        Schedule Harvest
+                    </button>
+                </div>
+
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Image Upload Preview */}
                     <div className="space-y-2">
@@ -203,13 +254,19 @@ export const AddProduct: React.FC = () => {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('farmer.price_per_kg')}</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">{postType === 'harvest' ? 'Base Price / kg' : t('farmer.price_per_kg')}</label>
                                 <div className="relative">
                                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                     <input
                                         name="price"
                                         type="number"
                                         step="0.01"
+                                        min="0"
+                                        onKeyDown={(e) => {
+                                            if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+                                                e.preventDefault();
+                                            }
+                                        }}
                                         value={formData.price}
                                         onChange={handleChange}
                                         className="input-field pl-10"
@@ -219,12 +276,18 @@ export const AddProduct: React.FC = () => {
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('farmer.quantity_kg')}</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">{postType === 'harvest' ? 'Estimated Quantity (kg)' : t('farmer.quantity_kg')}</label>
                                 <div className="relative">
                                     <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                     <input
                                         name="quantity"
                                         type="number"
+                                        min="0"
+                                        onKeyDown={(e) => {
+                                            if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+                                                e.preventDefault();
+                                            }
+                                        }}
                                         value={formData.quantity}
                                         onChange={handleChange}
                                         className="input-field pl-10"
@@ -234,6 +297,55 @@ export const AddProduct: React.FC = () => {
                                 </div>
                             </div>
                         </div>
+
+                        {postType === 'harvest' && (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-orange-50 border border-orange-100 rounded-xl">
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Expected Date</label>
+                                    <input
+                                        name="expectedHarvestDate"
+                                        type="date"
+                                        min={minHarvestStr}
+                                        max={maxHarvestStr}
+                                        value={formData.expectedHarvestDate}
+                                        onChange={handleChange}
+                                        className="input-field py-2 text-sm"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Min Preorder (kg)</label>
+                                    <input
+                                        name="minPreorderQuantity"
+                                        type="number"
+                                        min="1"
+                                        onKeyDown={(e) => {
+                                            if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+                                                e.preventDefault();
+                                            }
+                                        }}
+                                        value={formData.minPreorderQuantity}
+                                        onChange={handleChange}
+                                        className="input-field py-2 text-sm"
+                                        placeholder="e.g. 5"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Deadline Date</label>
+                                    <input
+                                        name="preorderDeadline"
+                                        type="date"
+                                        min={todayStr}
+                                        max={maxDeadlineStr || undefined}
+                                        value={formData.preorderDeadline}
+                                        onChange={handleChange}
+                                        className="input-field py-2 text-sm"
+                                        required
+                                    />
+                                </div>
+                            </div>
+                        )}
 
                         {/* Dynamic Price Recommendation Box */}
                         {recommendation && (recommendation.recommendedPrice !== null || recommendation.defaultPriceRange) && (

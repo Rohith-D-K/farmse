@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 
 export const Register: React.FC = () => {
     const [step, setStep] = useState(1);
-    const [role, setRole] = useState<'farmer' | 'buyer'>('buyer');
+    const [role, setRole] = useState<'farmer' | 'buyer' | 'retailer'>('buyer');
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -16,7 +16,10 @@ export const Register: React.FC = () => {
         location: '',
         deliveryLocation: '',
         latitude: null as number | null,
-        longitude: null as number | null
+        longitude: null as number | null,
+        businessName: '',
+        businessType: '',
+        licenseNumber: ''
     });
     const [error, setError] = useState('');
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -89,7 +92,10 @@ export const Register: React.FC = () => {
                     role: role,
                     deliveryLocation: role === 'buyer' ? formData.deliveryLocation : undefined,
                     latitude: formData.latitude ?? undefined,
-                    longitude: formData.longitude ?? undefined
+                    longitude: formData.longitude ?? undefined,
+                    businessName: role === 'retailer' ? formData.businessName : undefined,
+                    businessType: role === 'retailer' ? formData.businessType : undefined,
+                    licenseNumber: role === 'retailer' ? formData.licenseNumber : undefined,
                 }
             );
 
@@ -162,6 +168,22 @@ export const Register: React.FC = () => {
                         </button>
 
                         <button
+                            onClick={() => setRole('retailer')}
+                            className={`w-full p-4 rounded-2xl border-2 flex items-center gap-4 transition-all duration-200 ${role === 'retailer'
+                                ? 'border-green-600 bg-green-50 shadow-md ring-1 ring-green-600'
+                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                }`}
+                        >
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${role === 'retailer' ? 'bg-green-200 text-green-800' : 'bg-gray-100 text-gray-500'}`}>
+                                <ShoppingBag className="w-6 h-6" />
+                            </div>
+                            <div className="text-left">
+                                <p className={`font-bold ${role === 'retailer' ? 'text-green-900' : 'text-gray-900'}`}>Retailer (Bulk Buyer)</p>
+                                <p className="text-xs text-gray-500">Buy in bulk for your shop or restaurant</p>
+                            </div>
+                        </button>
+
+                        <button
                             onClick={() => setStep(2)}
                             className="w-full mt-6 py-3.5 rounded-xl bg-gray-900 text-white font-bold hover:bg-black transition-all active:scale-[0.98]"
                         >
@@ -226,6 +248,35 @@ export const Register: React.FC = () => {
                                 <label className="block text-xs font-bold text-gray-500 mb-1 ml-1 uppercase">{t('auth.delivery_address')}</label>
                                 <input name="deliveryLocation" type="text" required value={formData.deliveryLocation} onChange={handleChange} className={`input-field py-2.5 ${fieldErrors.deliveryLocation ? 'ring-2 ring-red-400' : ''}`} placeholder="House No, Street, Landmark..." />
                                 {fieldErrors.deliveryLocation && <p className="text-red-500 text-[10px] mt-0.5 ml-1">{fieldErrors.deliveryLocation}</p>}
+                            </div>
+                        )}
+
+                        {role === 'retailer' && (
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1 ml-1 uppercase">Business Name</label>
+                                    <input name="businessName" type="text" required value={formData.businessName} onChange={handleChange} className={`input-field py-2.5`} placeholder="Company / Shop Name" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 mb-1 ml-1 uppercase">Business Type</label>
+                                        <select name="businessType" required value={formData.businessType} onChange={(e: any) => handleChange(e)} className={`input-field py-2.5`}>
+                                            <option value="">Select Type</option>
+                                            <option value="shop">Shop</option>
+                                            <option value="restaurant">Restaurant</option>
+                                            <option value="hotel">Hotel</option>
+                                            <option value="vendor">Vendor</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 mb-1 ml-1 uppercase">License / ID</label>
+                                        <input name="licenseNumber" type="text" required value={formData.licenseNumber} onChange={handleChange} className={`input-field py-2.5`} placeholder="FSSAI / GST No." />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1 ml-1 uppercase">{t('auth.delivery_address')}</label>
+                                    <input name="deliveryLocation" type="text" required value={formData.deliveryLocation} onChange={handleChange} className={`input-field py-2.5`} placeholder="Business Delivery Address" />
+                                </div>
                             </div>
                         )}
 

@@ -21,6 +21,7 @@ import { Help } from './pages/Help';
 import { Dashboard as AdminDashboard } from './pages/admin/Dashboard';
 import { ChatRoom } from './pages/ChatRoom';
 import { ChatList } from './pages/ChatList';
+import { HarvestDetails } from './pages/HarvestDetails';
 
 function App() {
   return (
@@ -93,6 +94,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <ProductDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/harvest/:id"
+                element={
+                  <ProtectedRoute>
+                    <HarvestDetails />
                   </ProtectedRoute>
                 }
               />

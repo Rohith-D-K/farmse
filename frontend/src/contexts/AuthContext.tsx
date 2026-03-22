@@ -7,11 +7,15 @@ export interface User {
     name: string;
     phone: string;
     location: string;
-    role: 'farmer' | 'buyer' | 'admin';
+    role: 'farmer' | 'buyer' | 'admin' | 'retailer';
     isActive?: boolean;
     deliveryLocation: string | null;
     latitude: number | null;
     longitude: number | null;
+    retailerStatus?: 'pending' | 'verified' | 'rejected' | null;
+    businessName?: string | null;
+    businessType?: string | null;
+    licenseNumber?: string | null;
 }
 
 export interface AuthContextType {
@@ -22,10 +26,13 @@ export interface AuthContextType {
         name: string;
         phone: string;
         location: string;
-        role: 'farmer' | 'buyer';
+        role: 'farmer' | 'buyer' | 'retailer';
         deliveryLocation?: string;
         latitude?: number;
         longitude?: number;
+        businessName?: string;
+        businessType?: string;
+        licenseNumber?: string;
     }) => Promise<User>;
     logout: () => Promise<void>;
 }
@@ -55,10 +62,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: string;
         phone: string;
         location: string;
-        role: 'farmer' | 'buyer';
+        role: 'farmer' | 'buyer' | 'retailer';
         deliveryLocation?: string;
         latitude?: number;
         longitude?: number;
+        businessName?: string;
+        businessType?: string;
+        licenseNumber?: string;
     }) => {
         try {
             const newUser = await api.auth.register({
@@ -71,6 +81,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 deliveryLocation: userData.deliveryLocation || undefined,
                 latitude: userData.latitude ?? undefined,
                 longitude: userData.longitude ?? undefined,
+                businessName: userData.businessName ?? undefined,
+                businessType: userData.businessType ?? undefined,
+                licenseNumber: userData.licenseNumber ?? undefined,
             });
             setUser(newUser);
             return newUser;

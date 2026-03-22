@@ -9,11 +9,15 @@ export const users = pgTable('users', {
     name: text('name').notNull(),
     phone: text('phone').notNull(),
     location: text('location').notNull(),
-    role: text('role', { enum: ['farmer', 'buyer', 'admin'] }).notNull(),
+    role: text('role', { enum: ['farmer', 'buyer', 'admin', 'retailer'] }).notNull(),
     isActive: boolean('is_active').notNull().default(true),
     deliveryLocation: text('delivery_location'),
     latitude: doublePrecision('latitude'),
     longitude: doublePrecision('longitude'),
+    retailerStatus: text('retailer_status', { enum: ['pending', 'verified', 'rejected'] }),
+    businessName: text('business_name'),
+    businessType: text('business_type'),
+    licenseNumber: text('license_number'),
     createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
 });
 
@@ -121,6 +125,69 @@ export const cropSearches = pgTable('crop_searches', {
     searchedAt: text('searched_at').default(sql`CURRENT_TIMESTAMP`)
 });
 
+// Harvests table
+export const harvests = pgTable('harvests', {
+    id: text('id').primaryKey(),
+    farmerId: text('farmer_id').notNull().references(() => users.id),
+    cropName: text('crop_name').notNull(),
+    expectedHarvestDate: text('expected_harvest_date').notNull(),
+    estimatedQuantity: integer('estimated_quantity').notNull(), // in kg
+    basePricePerKg: doublePrecision('base_price_per_kg').notNull(),
+    minPreorderQuantity: integer('min_preorder_quantity').notNull(),
+    preorderDeadline: text('preorder_deadline').notNull(),
+    location: text('location').notNull(),
+    latitude: doublePrecision('latitude'),
+    longitude: doublePrecision('longitude'),
+    description: text('description'),
+    image: text('image'),
+    status: text('status', { enum: ['open', 'closed', 'completed', 'cancelled'] }).notNull().default('open'),
+    createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+// Preorders table
+export const preorders = pgTable('preorders', {
+    id: text('id').primaryKey(),
+    harvestId: text('harvest_id').notNull().references(() => harvests.id),
+    buyerId: text('buyer_id').notNull().references(() => users.id),
+    quantity: integer('quantity').notNull(), // in kg
+    deliveryMethod: text('delivery_method', {
+        enum: ['buyer_pickup', 'farmer_delivery', 'local_transport']
+    }).notNull(),
+    status: text('status', {
+        enum: ['reserved', 'confirmed', 'delivered', 'cancelled']
+    }).notNull().default('reserved'),
+    isBulk: boolean('is_bulk').notNull().default(false),
+    createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+// Negotiations table
+export const negotiations = pgTable('negotiations', {
+    id: text('id').primaryKey(),
+    harvestId: text('harvest_id').notNull().references(() => harvests.id),
+    retailerId: text('retailer_id').notNull().references(() => users.id),
+    farmerId: text('farmer_id').notNull().references(() => users.id),
+    offerPrice: doublePrecision('offer_price').notNull(),
+    quantity: integer('quantity').notNull(),
+    message: text('message'),
+    status: text('status', {
+        enum: ['pending', 'accepted', 'rejected', 'counter_offer']
+    }).notNull().default('pending'),
+    createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+// Subscriptions table
+export const subscriptions = pgTable('subscriptions', {
+    id: text('id').primaryKey(),
+    farmerId: text('farmer_id').notNull().references(() => users.id),
+    retailerId: text('retailer_id').notNull().references(() => users.id),
+    cropName: text('crop_name').notNull(),
+    quantity: integer('quantity').notNull(), // in kg
+    frequency: text('frequency', { enum: ['daily', 'weekly', 'monthly'] }).notNull(),
+    duration: integer('duration').notNull(), // in months
+    status: text('status', { enum: ['active', 'paused', 'cancelled'] }).notNull().default('active'),
+    createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -142,3 +209,11 @@ export type MarketPrice = typeof marketPrices.$inferSelect;
 export type NewMarketPrice = typeof marketPrices.$inferInsert;
 export type CropSearch = typeof cropSearches.$inferSelect;
 export type NewCropSearch = typeof cropSearches.$inferInsert;
+export type Harvest = typeof harvests.$inferSelect;
+export type NewHarvest = typeof harvests.$inferInsert;
+export type Preorder = typeof preorders.$inferSelect;
+export type NewPreorder = typeof preorders.$inferInsert;
+export type Negotiation = typeof negotiations.$inferSelect;
+export type NewNegotiation = typeof negotiations.$inferInsert;
+export type Subscription = typeof subscriptions.$inferSelect;
+export type NewSubscription = typeof subscriptions.$inferInsert;

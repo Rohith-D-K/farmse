@@ -13,6 +13,9 @@ import { locationRoutes } from './routes/location';
 import { aiRoutes } from './routes/ai';
 import { chatRoutes } from './routes/chats';
 import { priceRoutes } from './routes/price';
+import { harvestRoutes } from './routes/harvests';
+import { communityRoutes } from './routes/community';
+import { retailerRoutes } from './routes/retailer';
 
 dotenv.config();
 
@@ -60,6 +63,9 @@ await fastify.register(locationRoutes);
 await fastify.register(aiRoutes);
 await fastify.register(chatRoutes);
 await fastify.register(priceRoutes);
+await fastify.register(harvestRoutes);
+await fastify.register(communityRoutes);
+await fastify.register(retailerRoutes);
 
 // Register Socket.IO
 await fastify.register(fastifySocketIO, {

@@ -67,10 +67,13 @@ export const auth = {
         name: string;
         phone: string;
         location: string;
-        role: 'farmer' | 'buyer';
+        role: 'farmer' | 'buyer' | 'retailer';
         deliveryLocation?: string;
         latitude?: number;
         longitude?: number;
+        businessName?: string;
+        businessType?: string;
+        licenseNumber?: string;
     }) => {
         const result = await apiRequest<{ user: any; sessionToken: string }>(
             '/api/auth/register',
@@ -411,6 +414,32 @@ export const price = {
     },
 };
 
+// Harvest API
+export const harvests = {
+    create: async (data: any) => apiRequest<any>('/api/harvest/create', { method: 'POST', body: JSON.stringify(data) }),
+    getAll: async () => apiRequest<any[]>('/api/harvest/all'),
+    getById: async (id: string) => apiRequest<any>(`/api/harvest/${id}`),
+    preorder: async (data: any) => apiRequest<any>('/api/harvest/preorder', { method: 'POST', body: JSON.stringify(data) }),
+    getPreorders: async (id: string) => apiRequest<any[]>(`/api/harvest/${id}/preorders`),
+    getStats: async (id: string) => apiRequest<any>(`/api/harvest/${id}/stats`),
+    cancel: async (id: string) => apiRequest<{ message: string }>(`/api/harvest/${id}/cancel`, { method: 'POST' }),
+    cancelPreorder: async (id: string) => apiRequest<{ message: string }>(`/api/harvest/preorder/${id}/cancel`, { method: 'POST' }),
+    delete: async (id: string) => apiRequest<{ message: string }>(`/api/harvest/${id}`, { method: 'DELETE' }),
+};
+
+// Community API
+export const community = {
+    getDiscountTier: async (harvestId: string) => apiRequest<any>(`/api/community/${harvestId}`),
+};
+
+// Retailer API
+export const retailer = {
+    bulkOrder: async (data: any) => apiRequest<any>('/api/retailer/bulk-order', { method: 'POST', body: JSON.stringify(data) }),
+    negotiate: async (data: any) => apiRequest<any>('/api/retailer/negotiate', { method: 'POST', body: JSON.stringify(data) }),
+    subscription: async (data: any) => apiRequest<any>('/api/retailer/subscription', { method: 'POST', body: JSON.stringify(data) }),
+    getAnalytics: async () => apiRequest<any>('/api/retailer/analytics'),
+};
+
 export const api = {
     auth,
     products,
@@ -423,4 +452,7 @@ export const api = {
     ai,
     chats,
     price,
+    harvests,
+    community,
+    retailer,
 };

@@ -243,6 +243,12 @@ export const EditProduct: React.FC = () => {
                                         name="price"
                                         type="number"
                                         step="0.01"
+                                        min="0"
+                                        onKeyDown={(e) => {
+                                            if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+                                                e.preventDefault();
+                                            }
+                                        }}
                                         value={formData.price}
                                         onChange={handleChange}
                                         className="input-field pl-10"
@@ -257,6 +263,12 @@ export const EditProduct: React.FC = () => {
                                     <input
                                         name="quantity"
                                         type="number"
+                                        min="0"
+                                        onKeyDown={(e) => {
+                                            if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+                                                e.preventDefault();
+                                            }
+                                        }}
                                         value={formData.quantity}
                                         onChange={handleChange}
                                         className="input-field pl-10"

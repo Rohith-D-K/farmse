@@ -2,11 +2,20 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
+import { api } from '../../lib/api';
+import { useEffect, useState } from 'react';
 
 export const Dashboard: React.FC = () => {
     const { user, logout } = useAuth();
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const [analytics, setAnalytics] = useState<any>(null);
+
+    useEffect(() => {
+        if (user?.role === 'retailer') {
+            api.retailer.getAnalytics().then(setAnalytics).catch(console.error);
+        }
+    }, [user]);
 
     const handleLogout = async () => {
         try {
@@ -84,6 +93,30 @@ export const Dashboard: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                {user?.role === 'retailer' && analytics && (
+                    <div className="bg-white rounded-xl shadow-sm border border-indigo-100 p-6 mt-6">
+                        <h2 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4 mb-4">Retailer Analytics Dashboard</h2>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 text-center">
+                                <p className="text-sm text-indigo-600 font-medium">Total Orders</p>
+                                <p className="text-2xl font-bold text-indigo-900">{analytics.totalOrders}</p>
+                            </div>
+                            <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 text-center">
+                                <p className="text-sm text-indigo-600 font-medium">Quantity (kg)</p>
+                                <p className="text-2xl font-bold text-indigo-900">{analytics.totalQuantityPurchased}</p>
+                            </div>
+                            <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 text-center">
+                                <p className="text-sm text-indigo-600 font-medium">Money Spent</p>
+                                <p className="text-2xl font-bold text-indigo-900">₹{analytics.moneySpent}</p>
+                            </div>
+                            <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 text-center">
+                                <p className="text-sm text-indigo-600 font-medium">Top Crop</p>
+                                <p className="text-xl font-bold text-indigo-900 mt-1">{analytics.mostPurchasedCrop}</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Info Card */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">

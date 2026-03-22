@@ -15,11 +15,15 @@ async function initDatabase() {
         name TEXT NOT NULL,
         phone TEXT NOT NULL,
         location TEXT NOT NULL,
-        role TEXT NOT NULL CHECK(role IN ('farmer', 'buyer', 'admin')),
+        role TEXT NOT NULL CHECK(role IN ('farmer', 'buyer', 'admin', 'retailer')),
         is_active BOOLEAN NOT NULL DEFAULT true,
         delivery_location TEXT,
         latitude DOUBLE PRECISION,
         longitude DOUBLE PRECISION,
+        retailer_status TEXT CHECK(retailer_status IN ('pending', 'verified', 'rejected')),
+        business_name TEXT,
+        business_type TEXT,
+        license_number TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -127,6 +131,67 @@ async function initDatabase() {
       )
     `);
 
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS harvests (
+        id TEXT PRIMARY KEY,
+        farmer_id TEXT NOT NULL REFERENCES users(id),
+        crop_name TEXT NOT NULL,
+        expected_harvest_date TEXT NOT NULL,
+        estimated_quantity INTEGER NOT NULL,
+        base_price_per_kg DOUBLE PRECISION NOT NULL,
+        min_preorder_quantity INTEGER NOT NULL,
+        preorder_deadline TEXT NOT NULL,
+        location TEXT NOT NULL,
+        latitude DOUBLE PRECISION,
+        longitude DOUBLE PRECISION,
+        description TEXT,
+        image TEXT,
+        status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'closed', 'completed', 'cancelled')),
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS preorders (
+        id TEXT PRIMARY KEY,
+        harvest_id TEXT NOT NULL REFERENCES harvests(id),
+        buyer_id TEXT NOT NULL REFERENCES users(id),
+        quantity INTEGER NOT NULL,
+        delivery_method TEXT NOT NULL CHECK(delivery_method IN ('buyer_pickup', 'farmer_delivery', 'local_transport')),
+        status TEXT NOT NULL DEFAULT 'reserved' CHECK(status IN ('reserved', 'confirmed', 'delivered', 'cancelled')),
+        is_bulk BOOLEAN NOT NULL DEFAULT false,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS negotiations (
+        id TEXT PRIMARY KEY,
+        harvest_id TEXT NOT NULL REFERENCES harvests(id),
+        retailer_id TEXT NOT NULL REFERENCES users(id),
+        farmer_id TEXT NOT NULL REFERENCES users(id),
+        offer_price DOUBLE PRECISION NOT NULL,
+        quantity INTEGER NOT NULL,
+        message TEXT,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'accepted', 'rejected', 'counter_offer')),
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS subscriptions (
+        id TEXT PRIMARY KEY,
+        farmer_id TEXT NOT NULL REFERENCES users(id),
+        retailer_id TEXT NOT NULL REFERENCES users(id),
+        crop_name TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        frequency TEXT NOT NULL CHECK(frequency IN ('daily', 'weekly', 'monthly')),
+        duration INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'paused', 'cancelled')),
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Seed default market prices for common Indian crops (₹ per kg)
     const defaultMarketPrices = [
       { crop: 'Rice', price: 38 },
@@ -176,6 +241,20 @@ async function initDatabase() {
       });
 
       console.log('🛡️ Default admin created: admin@farmse.local / admin123');
+    }
+
+    // Attempt to alter harvests table for existing DBs
+    try {
+        await db.execute(sql`ALTER TABLE harvests ADD COLUMN IF NOT EXISTS image TEXT`);
+        await db.execute(sql`ALTER TABLE harvests ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'open'`);
+        
+        // Upgrade existing DBs for user retailer support
+        await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS retailer_status TEXT CHECK(retailer_status IN ('pending', 'verified', 'rejected'))`);
+        await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS business_name TEXT`);
+        await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS business_type TEXT`);
+        await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS license_number TEXT`);
+    } catch (e) {
+        // Ignore if error
     }
 
     console.log('✅ Database tables created successfully!\n');

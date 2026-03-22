@@ -13,20 +13,23 @@ import {
 export async function authRoutes(fastify: FastifyInstance) {
     // Register
     fastify.post('/api/auth/register', async (request, reply) => {
-        const { email, password, name, phone, location, role, deliveryLocation, latitude, longitude } = request.body as {
+        const { email, password, name, phone, location, role, deliveryLocation, latitude, longitude, businessName, businessType, licenseNumber } = request.body as {
             email: string;
             password: string;
             name: string;
             phone: string;
             location: string;
-            role: 'farmer' | 'buyer';
+            role: 'farmer' | 'buyer' | 'retailer';
             deliveryLocation?: string;
             latitude?: number;
             longitude?: number;
+            businessName?: string;
+            businessType?: string;
+            licenseNumber?: string;
         };
 
         try {
-            if (!['buyer', 'farmer'].includes(role)) {
+            if (!['buyer', 'farmer', 'retailer'].includes(role)) {
                 return reply.code(403).send({ error: 'Invalid role for public registration' });
             }
 
@@ -62,7 +65,11 @@ export async function authRoutes(fastify: FastifyInstance) {
                 role,
                 deliveryLocation: deliveryLocation || null,
                 latitude: hasValidCoordinates ? latitude : null,
-                longitude: hasValidCoordinates ? longitude : null
+                longitude: hasValidCoordinates ? longitude : null,
+                retailerStatus: role === 'retailer' ? 'pending' : null,
+                businessName: businessName || null,
+                businessType: businessType || null,
+                licenseNumber: licenseNumber || null,
             });
 
             // Create session
@@ -85,7 +92,11 @@ export async function authRoutes(fastify: FastifyInstance) {
                     isActive: users.isActive,
                     deliveryLocation: users.deliveryLocation,
                     latitude: users.latitude,
-                    longitude: users.longitude
+                    longitude: users.longitude,
+                    retailerStatus: users.retailerStatus,
+                    businessName: users.businessName,
+                    businessType: users.businessType,
+                    licenseNumber: users.licenseNumber
                 })
                 .from(users)
                 .where(eq(users.id, userId))
@@ -148,7 +159,11 @@ export async function authRoutes(fastify: FastifyInstance) {
                 isActive: user.isActive,
                 deliveryLocation: user.deliveryLocation,
                 latitude: user.latitude,
-                longitude: user.longitude
+                longitude: user.longitude,
+                retailerStatus: user.retailerStatus,
+                businessName: user.businessName,
+                businessType: user.businessType,
+                licenseNumber: user.licenseNumber
             };
 
             return reply.send({
@@ -214,7 +229,11 @@ export async function authRoutes(fastify: FastifyInstance) {
                     isActive: users.isActive,
                     deliveryLocation: users.deliveryLocation,
                     latitude: users.latitude,
-                    longitude: users.longitude
+                    longitude: users.longitude,
+                    retailerStatus: users.retailerStatus,
+                    businessName: users.businessName,
+                    businessType: users.businessType,
+                    licenseNumber: users.licenseNumber
                 })
                 .from(users)
                 .where(eq(users.id, session.userId))

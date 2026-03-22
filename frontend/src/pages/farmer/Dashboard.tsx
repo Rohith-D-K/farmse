@@ -33,6 +33,7 @@ export const Dashboard: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const [products, setProducts] = useState<Product[]>([]);
+    const [harvests, setHarvests] = useState<any[]>([]);
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -42,13 +43,15 @@ export const Dashboard: React.FC = () => {
 
     const fetchData = async () => {
         try {
-            // Fetch products and orders in parallel
-            const [productsData, ordersData] = await Promise.all([
+            // Fetch products, orders, and harvests in parallel
+            const [productsData, ordersData, harvestsData] = await Promise.all([
                 api.products.getMy(),
-                api.orders.getAll()
+                api.orders.getAll(),
+                api.harvests.getAll()
             ]);
             setProducts(productsData);
             setOrders(ordersData);
+            setHarvests(harvestsData.filter((h: any) => h.farmerId === user?.id));
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
         } finally {
@@ -64,6 +67,27 @@ export const Dashboard: React.FC = () => {
             setProducts(products.filter(p => p.id !== id));
         } catch (error: any) {
             alert(error.message || 'Failed to delete product');
+        }
+    };
+
+    const handleDeleteHarvest = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this harvest?')) return;
+        try {
+            await api.harvests.delete(id);
+            setHarvests(harvests.filter(h => h.id !== id));
+        } catch (error: any) {
+            alert(error.message || 'Failed to delete harvest');
+        }
+    };
+
+    const handleCancelHarvest = async (id: string) => {
+        if (!confirm('Are you sure you want to cancel this harvest? All preorders will be refunded.')) return;
+        try {
+            await api.harvests.cancel(id);
+            alert('Harvest cancelled successfully.');
+            fetchData();
+        } catch (error: any) {
+            alert(error.message || 'Failed to cancel harvest');
         }
     };
 
@@ -283,6 +307,62 @@ export const Dashboard: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* Harvests List */}
+            {harvests.length > 0 && (
+                <div className="space-y-4" id="tour-farmer-harvests">
+                    <h2 className="text-lg font-bold text-gray-900 px-1">{t('farmer.your_harvests', {defaultValue: 'Your Upcoming Harvests'})}</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {harvests.map((harvest) => (
+                            <div key={harvest.id} className="card-premium p-4 flex gap-4 hover:border-orange-100 transition-colors group">
+                                <div className="w-24 h-24 flex-shrink-0">
+                                    <img
+                                        src={harvest.image}
+                                        alt={harvest.cropName}
+                                        className="w-full h-full object-cover rounded-lg shadow-sm"
+                                        onError={(e) => { (e.target as HTMLImageElement).src = getImageForCrop(harvest.cropName); }}
+                                    />
+                                </div>
+                                <div className="flex-1 flex flex-col justify-between py-1">
+                                    <div>
+                                        <div className="flex justify-between items-start">
+                                            <h3 className="font-bold text-gray-900 group-hover:text-orange-600 transition-colors">{t(`crops.${harvest.cropName}`, {defaultValue: harvest.cropName})}</h3>
+                                            <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-orange-50 text-orange-600">
+                                                {harvest.estimatedQuantity} kg total
+                                            </span>
+                                        </div>
+                                        <p className="text-sm border-l-2 border-orange-500 pl-2 mt-1">Exp: {new Date(harvest.expectedHarvestDate).toLocaleDateString()}</p>
+                                        <p className="text-sm font-semibold text-gray-700 mt-1">₹{harvest.basePricePerKg}<span className="text-xs font-normal text-gray-500">/kg Base</span></p>
+                                    </div>
+
+                                    <div className="flex flex-col gap-2 mt-3">
+                                        <button
+                                            onClick={() => navigate(`/harvest/${harvest.id}`)}
+                                            className="w-full bg-orange-50 text-orange-600 text-xs font-medium py-1.5 rounded-lg hover:bg-orange-100 transition-colors"
+                                        >
+                                            View Details
+                                        </button>
+                                        <div className="flex gap-2 w-full">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleCancelHarvest(harvest.id); }}
+                                                className="flex-1 bg-red-50 text-red-600 text-xs py-1.5 rounded-lg hover:bg-red-100 transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleDeleteHarvest(harvest.id); }}
+                                                className="flex-1 bg-gray-100 text-gray-700 text-xs py-1.5 rounded-lg hover:bg-gray-200 transition-colors"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

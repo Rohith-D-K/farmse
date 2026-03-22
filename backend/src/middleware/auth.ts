@@ -8,13 +8,14 @@ export interface AuthenticatedRequest extends FastifyRequest {
         id: string;
         email: string;
         name: string;
-        role: 'farmer' | 'buyer' | 'admin';
+        role: 'farmer' | 'buyer' | 'admin' | 'retailer';
         isActive: boolean;
         phone: string;
         location: string;
         deliveryLocation: string | null;
         latitude: number | null;
         longitude: number | null;
+        retailerStatus: string | null;
     };
 }
 
@@ -78,9 +79,33 @@ export async function authenticate(
             location: user.location,
             deliveryLocation: user.deliveryLocation,
             latitude: user.latitude,
-            longitude: user.longitude
+            longitude: user.longitude,
+            retailerStatus: user.retailerStatus || null
         };
     } catch (error) {
         reply.code(500).send({ error: 'Authentication failed' });
     }
 }
+
+// Role-based auth middleware
+export async function requireFarmer(request: AuthenticatedRequest, reply: FastifyReply) {
+    if (!request.user || request.user.role !== 'farmer') {
+        reply.code(403).send({ error: 'Only farmers can perform this action' });
+        // NOTE: we don't throw, Fastify intercepts the reply code
+    }
+}
+
+export async function requireRetailer(request: AuthenticatedRequest, reply: FastifyReply) {
+    if (!request.user || request.user.role !== 'retailer') {
+        reply.code(403).send({ error: 'Only retailers can perform this action' });
+    } else if (request.user.retailerStatus !== 'verified') {
+        reply.code(403).send({ error: 'Your retailer account is currently pending verification. Admin approval is required.' });
+    }
+}
+
+export async function requireBuyerOrRetailer(request: AuthenticatedRequest, reply: FastifyReply) {
+    if (!request.user || (request.user.role !== 'buyer' && request.user.role !== 'retailer')) {
+        reply.code(403).send({ error: 'Only buyers and retailers can perform this action' });
+    }
+}
+
