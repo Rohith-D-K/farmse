@@ -2,18 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/api';
-import { 
-    Package, 
-    Truck, 
-    CheckCircle2, 
-    Clock, 
-    ShieldCheck, 
-    MapPin, 
+import {
+    Package,
+    Truck,
+    CheckCircle2,
+    Clock,
+    ShieldCheck,
+    MapPin,
     Loader2,
     AlertCircle,
     MessageSquare,
     ChevronRight,
-    ArrowLeft
+    ArrowLeft,
+    Check
 } from 'lucide-react';
 
 import { useSocket } from '../contexts/SocketContext';
@@ -81,16 +82,16 @@ export const OrderTracking: React.FC = () => {
     }, [id, socket]);
 
     if (loading) return (
-        <div className="min-h-screen flex items-center justify-center">
-            <Loader2 className="w-8 h-8 text-green-600 animate-spin" />
+        <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--color-surface)' }}>
+            <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--color-green)' }} strokeWidth={1.5} />
         </div>
     );
 
     if (error || !order) return (
-        <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center">
-            <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Error</h2>
-            <p className="text-gray-600 mb-6">{error}</p>
+        <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center" style={{ background: 'var(--color-surface)' }}>
+            <AlertCircle className="w-12 h-12 text-red-500 mb-4" strokeWidth={1.5} />
+            <h2 className="text-xl font-bold text-farmse-dark mb-2" style={{ fontFamily: 'var(--font-display)' }}>Error</h2>
+            <p className="text-farmse-muted mb-6">{error}</p>
             <button onClick={() => navigate('/orders')} className="btn-primary px-8">Back to Orders</button>
         </div>
     );
@@ -107,83 +108,106 @@ export const OrderTracking: React.FC = () => {
     const isCancelled = order.orderStatus === 'cancelled' || order.orderStatus === 'rejected';
 
     return (
-        <div className="max-w-2xl mx-auto pb-20 md:pb-8">
-            <div className="flex items-center gap-4 mb-8">
-                <button 
-                    onClick={() => navigate('/orders')} 
-                    className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-100 hover:bg-gray-50 transition-colors"
+        <div className="max-w-2xl mx-auto pb-20 md:pb-8" style={{ background: 'var(--color-surface)', minHeight: '100vh' }}>
+
+            {/* Back + Title */}
+            <div className="flex items-center gap-4 mb-6">
+                <button
+                    onClick={() => navigate('/orders')}
+                    className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-card border border-farmse-green/10 hover:bg-farmse-green-light transition-colors"
                 >
-                    <ArrowLeft className="w-5 h-5 text-gray-600" />
+                    <ArrowLeft className="w-5 h-5" style={{ color: 'var(--color-green)' }} strokeWidth={1.5} />
                 </button>
                 <div>
-                    <h1 className="text-2xl font-black text-gray-900 tracking-tight">Order Tracking</h1>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Order #{id?.split('-')[0].toUpperCase()}</p>
+                    <h1 className="text-2xl font-bold text-farmse-dark" style={{ fontFamily: 'var(--font-display)' }}>Order Tracking</h1>
+                    <p className="text-[10px] font-bold text-farmse-muted uppercase tracking-widest">Order #{id?.split('-')[0].toUpperCase()}</p>
                 </div>
             </div>
+            {/* Vertical Timeline Stepper */}
+            <div className="card-premium p-6 mb-5">
+                <h3 className="text-sm font-bold text-farmse-dark mb-5 uppercase tracking-widest" style={{ fontFamily: 'var(--font-body)' }}>
+                    Order Progress
+                </h3>
 
-            {/* Status Progress Bar */}
-            <div className="card-premium p-8 mb-6">
-                <div className="relative">
-                    {/* Background Line */}
-                    <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-100 -z-10"></div>
-                    {/* Progress Line */}
-                    {!isCancelled && currentStageIndex >= 0 && (
-                        <div 
-                            className="absolute top-5 left-0 h-0.5 bg-green-500 transition-all duration-1000 -z-10"
-                            style={{ width: `${(currentStageIndex / (stages.length - 1)) * 100}%` }}
-                        ></div>
-                    )}
-
-                    <div className="flex justify-between items-start">
+                {isCancelled ? (
+                    <div className="p-5 rounded-card flex items-center gap-4" style={{ background: '#FEF2F2', border: '1px solid #FECACA' }}>
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#FEE2E2' }}>
+                            <AlertCircle className="w-5 h-5 text-red-600" strokeWidth={1.5} />
+                        </div>
+                        <div>
+                            <p className="font-bold text-red-700 text-sm">
+                                Order {order.orderStatus === 'rejected' ? 'Rejected' : 'Cancelled'}
+                            </p>
+                            <p className="text-xs text-red-600/70 mt-0.5">This transaction has been terminated.</p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex flex-col">
                         {stages.map((stage, index) => {
                             const Icon = stage.icon;
-                            const isActive = index <= currentStageIndex;
-                            const isCurrent = index === currentStageIndex;
-                            
+                            const isDone    = index < currentStageIndex;
+                            const isActive  = index === currentStageIndex;
+                            const isPending = index > currentStageIndex;
+                            const isLast    = index === stages.length - 1;
+
                             return (
-                                <div key={stage.key} className="flex flex-col items-center text-center w-20">
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center border-4 transition-all duration-500 ${
-                                        isActive ? 'bg-green-600 border-green-50 text-white shadow-lg shadow-green-100' : 'bg-white border-gray-50 text-gray-300'
-                                    } ${isCurrent && !isCancelled ? 'animate-pulse' : ''}`}>
-                                        <Icon className="w-5 h-5" />
+                                <div key={stage.key} className="flex gap-4">
+                                    {/* Circle + connector */}
+                                    <div className="flex flex-col items-center">
+                                        {isDone && (
+                                            <div className="timeline-dot-done">
+                                                <Check className="w-4 h-4" strokeWidth={2.5} />
+                                            </div>
+                                        )}
+                                        {isActive && (
+                                            <div className="timeline-dot-active">
+                                                <Icon className="w-4 h-4" strokeWidth={1.5} />
+                                            </div>
+                                        )}
+                                        {isPending && (
+                                            <div className="timeline-dot-pending">
+                                                <Icon className="w-4 h-4" strokeWidth={1.5} />
+                                            </div>
+                                        )}
+                                        {!isLast && (
+                                            <div className={isDone ? 'timeline-line-done' : 'timeline-line-pending'} />
+                                        )}
                                     </div>
-                                    <p className={`mt-3 text-[10px] font-bold uppercase tracking-wider ${
-                                        isActive ? 'text-green-700' : 'text-gray-400'
-                                    }`}>{stage.label}</p>
+
+                                    {/* Label + timestamp */}
+                                    <div className={`pb-6 flex-1 ${isLast ? 'pb-0' : ''}`}>
+                                        <p className={`text-sm font-bold leading-tight mt-1.5 ${
+                                            isDone || isActive ? 'text-farmse-dark' : 'text-gray-400'
+                                        }`} style={{ fontFamily: 'var(--font-body)' }}>
+                                            {stage.label}
+                                        </p>
+                                        {(isDone || isActive) && (
+                                            <p className="text-[10px] text-farmse-muted mt-0.5">
+                                                {isActive ? 'In progress' : 'Completed'}
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                             );
                         })}
-                    </div>
-                </div>
-
-                {isCancelled && (
-                    <div className="mt-8 p-6 bg-red-50 rounded-3xl border border-red-100 flex items-center gap-4">
-                        <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center flex-shrink-0">
-                            <AlertCircle className="w-6 h-6 text-red-600" />
-                        </div>
-                        <div>
-                            <p className="text-sm font-black text-red-700 uppercase tracking-widest">
-                                Order {order.orderStatus === 'rejected' ? 'Rejected' : 'Cancelled'}
-                            </p>
-                            <p className="text-xs text-red-600/70 font-medium">This transaction has been terminated.</p>
-                        </div>
                     </div>
                 )}
             </div>
 
             {/* Payment Section (Visible to Buyer when delivered but payment pending) */}
             {order.orderStatus === 'delivered' && order.paymentStatus === 'pending' && (
-                <div className="bg-green-600 rounded-3xl p-8 text-white shadow-xl shadow-green-100 mb-6 relative overflow-hidden">
+                <div className="rounded-card p-6 text-white mb-5 relative overflow-hidden"
+                    style={{ background: 'linear-gradient(135deg, #2D7A4F 0%, #1A5C3A 100%)', boxShadow: 'var(--shadow-card)' }}>
                     <div className="relative z-10 flex flex-col items-center text-center">
-                        <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-md">
-                            <CheckCircle2 className="w-10 h-10 text-white" />
+                        <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mb-4" style={{ backdropFilter: 'blur(8px)' }}>
+                            <CheckCircle2 className="w-8 h-8 text-white" strokeWidth={1.5} />
                         </div>
-                        <h3 className="text-xl font-black mb-2">Order Delivered!</h3>
-                        <p className="text-green-100 text-sm mb-6">Your order has been verified. Please finalize your payment to complete the order.</p>
-                        
-                        <button 
+                        <h3 className="text-lg font-bold mb-1" style={{ fontFamily: 'var(--font-display)' }}>Order Delivered!</h3>
+                        <p className="text-white/80 text-sm mb-5">Your order has been verified. Please finalize your payment.</p>
+                        <button
                             onClick={handleFinalizePayment}
-                            className="w-full max-w-xs bg-white text-green-700 py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg hover:bg-green-50 transition-colors"
+                            className="w-full max-w-xs bg-white py-3.5 rounded-card font-bold hover:bg-farmse-surface transition-colors active:scale-[0.97]"
+                            style={{ color: 'var(--color-green)', fontFamily: 'var(--font-body)' }}
                         >
                             Complete Payment Now
                         </button>
@@ -194,17 +218,18 @@ export const OrderTracking: React.FC = () => {
 
             {/* OTP Section (Visible only to Buyer when out_for_delivery) */}
             {order.orderStatus === 'out_for_delivery' && order.otp && (
-                <div className="bg-indigo-600 rounded-3xl p-8 text-white shadow-xl shadow-indigo-100 mb-6 relative overflow-hidden">
+                <div className="rounded-card p-6 text-white mb-5 relative overflow-hidden"
+                    style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)', boxShadow: 'var(--shadow-card)' }}>
                     <div className="relative z-10 flex flex-col items-center text-center">
-                        <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-md">
-                            <ShieldCheck className="w-10 h-10 text-white" />
+                        <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mb-4" style={{ backdropFilter: 'blur(8px)' }}>
+                            <ShieldCheck className="w-8 h-8 text-white" strokeWidth={1.5} />
                         </div>
-                        <h3 className="text-xl font-black mb-2">Delivery OTP</h3>
-                        <p className="text-indigo-100 text-sm mb-6">Share this code with the farmer only when you receive your items.</p>
-                        
-                        <div className="flex gap-4">
+                        <h3 className="text-lg font-bold mb-1" style={{ fontFamily: 'var(--font-display)' }}>Delivery OTP</h3>
+                        <p className="text-white/80 text-sm mb-5">Share this code with the farmer only when you receive your items.</p>
+                        <div className="flex gap-3">
                             {order.otp.split('').map((digit: string, i: number) => (
-                                <div key={i} className="w-14 h-16 bg-white text-indigo-700 rounded-2xl flex items-center justify-center text-2xl font-black shadow-lg">
+                                <div key={i} className="w-12 h-14 bg-white rounded-xl flex items-center justify-center text-2xl font-bold shadow-lg"
+                                    style={{ color: '#4338ca' }}>
                                     {digit}
                                 </div>
                             ))}
@@ -214,76 +239,83 @@ export const OrderTracking: React.FC = () => {
                 </div>
             )}
 
-            {/* Order Info */}
-            <div className="space-y-4">
-                <div className="card-premium p-6">
+            {/* Order Info Cards */}
+            <div className="space-y-3">
+                {/* Product card */}
+                <div className="card-premium p-5">
                     <div className="flex gap-4">
-                        <div className="w-20 h-20 rounded-2xl overflow-hidden border border-gray-100 flex-shrink-0">
-                            <img 
-                                src={order.productImage} 
-                                alt={order.cropName} 
-                                className="w-full h-full object-cover"
-                            />
+                        <div className="w-20 h-20 rounded-card overflow-hidden flex-shrink-0" style={{ border: '1px solid rgba(45,122,79,0.12)' }}>
+                            <img src={order.productImage} alt={order.cropName} className="w-full h-full object-cover" />
                         </div>
                         <div className="flex-1">
                             <div className="flex justify-between items-start">
-                                <h3 className="text-lg font-bold text-gray-900">{order.cropName}</h3>
-                                <span className="text-xs font-black text-green-600 bg-green-50 px-2 py-1 rounded-full">{order.orderType?.toUpperCase() || 'NORMAL'}</span>
+                                <h3 className="text-base font-bold text-farmse-dark" style={{ fontFamily: 'var(--font-body)' }}>{order.cropName}</h3>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                                    style={{ background: 'var(--color-green-light)', color: 'var(--color-green)' }}>
+                                    {order.orderType?.toUpperCase() || 'NORMAL'}
+                                </span>
                             </div>
-                            <p className="text-sm text-gray-500 mt-1">{order.quantity} kg • ₹{order.totalPrice}</p>
-                            <div className="flex items-center gap-1.5 mt-2 text-xs text-gray-400">
-                                <Clock className="w-3.5 h-3.5" />
+                            <p className="text-sm text-farmse-muted mt-1">{order.quantity} kg • ₹{order.totalPrice}</p>
+                            <div className="flex items-center gap-1.5 mt-2 text-xs text-farmse-muted">
+                                <Clock className="w-3.5 h-3.5" strokeWidth={1.5} />
                                 Ordered on {new Date(order.createdAt).toLocaleDateString()}
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="card-premium p-5 flex items-start gap-4">
-                        <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                            <MapPin className="w-5 h-5 text-orange-600" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Delivery location */}
+                    <div className="card-premium p-4 flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-amber-light)' }}>
+                            <MapPin className="w-5 h-5" style={{ color: 'var(--color-amber)' }} strokeWidth={1.5} />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Delivery To</p>
-                            <p className="text-sm font-bold text-gray-900 mt-1 leading-snug">{order.productLocation || 'Farmer Location'}</p>
+                            <p className="text-[10px] font-bold text-farmse-muted uppercase tracking-widest">Delivery To</p>
+                            <p className="text-sm font-semibold text-farmse-dark mt-1 leading-snug">{order.productLocation || 'Farmer Location'}</p>
                         </div>
                     </div>
+
+                    {/* Chat with farmer */}
                     {user?.id !== order.farmerId && (
-                        <button 
+                        <button
                             onClick={handleStartChat}
-                            className="card-premium p-5 flex items-start gap-4 hover:shadow-md transition-all group w-full text-left"
+                            className="card-premium p-4 flex items-start gap-3 hover:shadow-card-hover transition-all group w-full text-left"
                         >
-                            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                                <MessageSquare className="w-5 h-5 text-blue-600" />
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
+                                style={{ background: 'var(--color-green-light)' }}>
+                                <MessageSquare className="w-5 h-5" style={{ color: 'var(--color-green)' }} strokeWidth={1.5} />
                             </div>
                             <div className="flex-1">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Support</p>
-                                <p className="text-sm font-bold text-gray-900 mt-1">Chat with Farmer</p>
-                                <p className="text-[10px] text-blue-600 font-bold uppercase mt-1">Start Conversation</p>
+                                <p className="text-[10px] font-bold text-farmse-muted uppercase tracking-widest">Support</p>
+                                <p className="text-sm font-semibold text-farmse-dark mt-1">Chat with Farmer</p>
+                                <p className="text-[10px] font-bold uppercase mt-1" style={{ color: 'var(--color-green)' }}>Start Conversation</p>
                             </div>
                             <div className="self-center">
-                                <ChevronRight className="w-4 h-4 text-gray-300" />
+                                <ChevronRight className="w-4 h-4 text-gray-300" strokeWidth={1.5} />
                             </div>
                         </button>
                     )}
                 </div>
 
-                <div className="card-premium p-6">
-                    <h4 className="text-sm font-black text-gray-900 mb-4 uppercase tracking-widest">Payment Details</h4>
+                {/* Payment details */}
+                <div className="card-premium p-5">
+                    <h4 className="text-sm font-bold text-farmse-dark mb-4 uppercase tracking-widest" style={{ fontFamily: 'var(--font-body)' }}>Payment Details</h4>
                     <div className="space-y-3">
                         <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Subtotal</span>
-                            <span className="font-bold text-gray-900">₹{order.totalPrice}</span>
+                            <span className="text-farmse-muted">Subtotal</span>
+                            <span className="font-bold text-farmse-dark">₹{order.totalPrice}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Method</span>
-                            <span className="font-bold text-gray-900 uppercase">{order.paymentMethod.replace(/_/g, ' ')}</span>
+                            <span className="text-farmse-muted">Method</span>
+                            <span className="font-bold text-farmse-dark uppercase">{order.paymentMethod.replace(/_/g, ' ')}</span>
                         </div>
-                        <div className="pt-3 border-t border-gray-50 flex justify-between items-center">
-                            <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Status</span>
+                        <div className="pt-3 border-t border-farmse-green/10 flex justify-between items-center">
+                            <span className="text-xs font-bold text-farmse-muted uppercase tracking-widest">Status</span>
                             <span className={`text-xs font-bold px-3 py-1 rounded-full ${
-                                order.paymentStatus === 'completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                                order.paymentStatus === 'completed'
+                                    ? 'bg-farmse-green-light text-farmse-green'
+                                    : 'bg-farmse-amber-light text-amber-700'
                             }`}>
                                 {order.paymentStatus?.toUpperCase()}
                             </span>

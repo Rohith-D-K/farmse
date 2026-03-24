@@ -44,7 +44,7 @@ services:
         # Leave VITE_API_URL empty so the frontend uses relative URLs.
         VITE_API_URL: ""
     ports:
-      - "8080:80"
+      - "5173:80"
     depends_on:
       - backend
     restart: unless-stopped

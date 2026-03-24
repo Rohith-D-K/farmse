@@ -124,10 +124,12 @@ export const Checkout: React.FC = () => {
 
     if (checkoutItems.length === 0) {
         return (
-            <div className="min-h-screen flex items-center justify-center p-4">
+            <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--color-surface)' }}>
                 <div className="text-center">
-                    <p className="text-xl font-bold text-gray-900 mb-4">{t('checkout.cart_empty')}</p>
-                    <button onClick={() => navigate('/marketplace')} className="btn-primary px-6 py-2">
+                    <p className="text-xl font-bold text-farmse-dark mb-4" style={{ fontFamily: 'var(--font-display)' }}>
+                        {t('checkout.cart_empty')}
+                    </p>
+                    <button onClick={() => navigate('/marketplace')} className="btn-primary px-6 py-3">
                         {t('checkout.browse_marketplace')}
                     </button>
                 </div>
@@ -173,12 +175,27 @@ export const Checkout: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-24 md:pb-8">
-            <div className="max-w-2xl mx-auto md:py-8 space-y-6 pt-2">
+        <div className="min-h-screen pb-24 md:pb-8" style={{ background: 'var(--color-surface)' }}>
+            <div className="max-w-2xl mx-auto md:py-8 space-y-4 pt-2">
+
+                {/* First Order Free Banner (conditional) */}
+                {deliveryFee === 0 && (
+                    <div className="flash-banner p-4 flex items-center gap-3">
+                        <span className="text-2xl">🎉</span>
+                        <div>
+                            <p className="text-white font-bold text-sm" style={{ fontFamily: 'var(--font-display)' }}>
+                                First Order Free Delivery!
+                            </p>
+                            <p className="text-white/80 text-xs">No delivery charge on your first order.</p>
+                        </div>
+                    </div>
+                )}
 
                 {/* Items List */}
                 <div className="space-y-3">
-                    <h2 className="text-lg font-bold text-gray-900">{t('checkout.order_items')} ({checkoutItems.length})</h2>
+                    <h2 className="text-base font-bold text-farmse-dark" style={{ fontFamily: 'var(--font-display)' }}>
+                        {t('checkout.order_items')} ({checkoutItems.length})
+                    </h2>
                     {cartSyncMessage && (
                         <div className="p-3 rounded-lg bg-blue-50 text-blue-700 text-xs">
                             {cartSyncMessage}
@@ -189,43 +206,52 @@ export const Checkout: React.FC = () => {
                             <img
                                 src={item.image}
                                 alt={item.cropName}
-                                className="w-20 h-20 rounded-xl object-cover shadow-sm"
+                                className="w-20 h-20 object-cover flex-shrink-0"
+                                style={{ borderRadius: 'var(--radius-sm)' }}
                                 onError={(e) => { (e.target as HTMLImageElement).src = getImageForCrop(item.cropName); }}
                             />
                             <div className="flex-1">
-                                <h3 className="font-bold text-gray-900">{t(`crops.${item.cropName}`, {defaultValue: item.cropName})}</h3>
-                                <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                                    <MapPin className="w-3 h-3" />
+                                <h3 className="font-semibold text-farmse-dark" style={{ fontFamily: 'var(--font-body)' }}>
+                                    {t(`crops.${item.cropName}`, {defaultValue: item.cropName})}
+                                </h3>
+                                <p className="text-xs text-farmse-muted mt-0.5 flex items-center gap-1">
+                                    <MapPin className="w-3 h-3" strokeWidth={1.5} />
                                     {item.location}
                                 </p>
                                 {distanceByProduct[item.productId] && (
-                                    <p className="text-xs text-green-700 mt-1 font-medium">
+                                    <p className="text-xs mt-1 font-medium" style={{ color: 'var(--color-green)' }}>
                                         {distanceByProduct[item.productId].distanceKm.toFixed(1)} {t('checkout.km_away')}
                                         {distanceByProduct[item.productId].etaMinutes
                                             ? ` • ~${distanceByProduct[item.productId].etaMinutes} min`
                                             : ''}
                                     </p>
                                 )}
-                                <div className="flex justify-between items-center mt-3">
-                                    <div className="bg-gray-100 px-2 py-1 rounded-lg text-xs font-bold text-gray-700">
+                                <div className="flex justify-between items-center mt-2">
+                                    <div className="px-2.5 py-1 rounded-card text-xs font-semibold text-farmse-dark"
+                                        style={{ background: 'var(--color-amber-light)', fontFamily: 'var(--font-body)' }}>
                                         {item.quantity} {t('checkout.kg')}
                                     </div>
-                                    <span className="font-bold text-gray-900">₹{(item.price * item.quantity).toFixed(2)}</span>
+                                    <span className="font-bold text-farmse-dark">₹{(item.price * item.quantity).toFixed(2)}</span>
                                 </div>
                             </div>
                             {!isDirectBuy && (
                                 <button
                                     onClick={() => removeFromCart(item.productId)}
-                                    className="self-start p-2 hover:bg-red-50 text-red-500 rounded-lg transition-colors"
+                                    className="self-start p-2 hover:bg-red-50 text-red-400 hover:text-red-500 rounded-card transition-colors"
                                     title="Remove from cart"
                                 >
-                                    <Trash2 className="w-5 h-5" />
+                                    <Trash2 className="w-4 h-4" strokeWidth={1.5} />
                                 </button>
                             )}
                         </div>
                     ))}
+                    {cartSyncMessage && (
+                        <div className="p-3 rounded-card text-xs" style={{ background: '#EEF7FF', color: '#1d4ed8' }}>
+                            {cartSyncMessage}
+                        </div>
+                    )}
                     {distanceError && (
-                        <div className="p-3 rounded-lg bg-amber-50 text-amber-700 text-xs">
+                        <div className="p-3 rounded-card text-xs" style={{ background: 'var(--color-amber-light)', color: '#92400e' }}>
                             {distanceError}. Update your profile address for accurate farm distance.
                         </div>
                     )}
@@ -299,37 +325,42 @@ export const Checkout: React.FC = () => {
 
                 {/* Delivery Options */}
                 <div className="card-premium p-4 space-y-4">
-                    <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                        <Truck className="w-5 h-5 text-green-600" /> {t('checkout.delivery_options')}
+                    <h3 className="font-bold text-farmse-dark flex items-center gap-2" style={{ fontFamily: 'var(--font-display)' }}>
+                        <Truck className="w-5 h-5 text-farmse-green" strokeWidth={1.5} /> {t('checkout.delivery_options')}
                     </h3>
 
                     <div className="space-y-3">
-                        <label className={`
-                            flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all
-                            ${deliveryMethod === 'buyer_pickup' ? 'border-green-500 bg-green-50/50' : 'border-gray-100 hover:border-gray-200'}
-                        `}>
-                            <input type="radio" name="delivery" checked={deliveryMethod === 'buyer_pickup'} onChange={() => setDeliveryMethod('buyer_pickup')} className="w-5 h-5 text-green-600 accent-green-600" />
+                        <label className={`flex items-center gap-4 p-4 rounded-card border-2 cursor-pointer transition-all ${
+                            deliveryMethod === 'buyer_pickup'
+                                ? 'border-farmse-green bg-farmse-green-light'
+                                : 'border-gray-100 hover:border-farmse-green/30'
+                        }`}>
+                            <input type="radio" name="delivery" checked={deliveryMethod === 'buyer_pickup'} onChange={() => setDeliveryMethod('buyer_pickup')}
+                                className="w-4 h-4 accent-farmse-green" />
                             <div className="flex-1">
                                 <div className="flex justify-between">
-                                    <span className="font-bold text-gray-900">{t('checkout.buyer_pickup')}</span>
-                                    <span className="text-green-600 font-bold">{t('checkout.free')}</span>
+                                    <span className="font-semibold text-farmse-dark" style={{ fontFamily: 'var(--font-body)' }}>{t('checkout.buyer_pickup')}</span>
+                                    <span className="font-bold text-farmse-green">{t('checkout.free')}</span>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1">{t('checkout.buyer_pickup_desc')}</p>
+                                <p className="text-xs text-farmse-muted mt-0.5">{t('checkout.buyer_pickup_desc')}</p>
                             </div>
                         </label>
 
-                        <label className={`
-                            flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all
-                            ${!farmerDeliveryAvailable ? 'opacity-50 cursor-not-allowed border-gray-100 bg-gray-50' :
-                              deliveryMethod === 'farmer_delivery' ? 'border-green-500 bg-green-50/50' : 'border-gray-100 hover:border-gray-200'}
-                        `}>
-                            <input type="radio" name="delivery" checked={deliveryMethod === 'farmer_delivery'} onChange={() => setDeliveryMethod('farmer_delivery')} disabled={!farmerDeliveryAvailable} className="w-5 h-5 text-green-600 accent-green-600" />
+                        <label className={`flex items-center gap-4 p-4 rounded-card border-2 cursor-pointer transition-all ${
+                            !farmerDeliveryAvailable
+                                ? 'opacity-50 cursor-not-allowed border-gray-100 bg-gray-50'
+                                : deliveryMethod === 'farmer_delivery'
+                                    ? 'border-farmse-green bg-farmse-green-light'
+                                    : 'border-gray-100 hover:border-farmse-green/30'
+                        }`}>
+                            <input type="radio" name="delivery" checked={deliveryMethod === 'farmer_delivery'} onChange={() => setDeliveryMethod('farmer_delivery')}
+                                disabled={!farmerDeliveryAvailable} className="w-4 h-4 accent-farmse-green" />
                             <div className="flex-1">
                                 <div className="flex justify-between">
-                                    <span className="font-bold text-gray-900">{t('checkout.farmer_delivery')}</span>
-                                    <span className="text-gray-900 font-bold">₹50</span>
+                                    <span className="font-semibold text-farmse-dark" style={{ fontFamily: 'var(--font-body)' }}>{t('checkout.farmer_delivery')}</span>
+                                    <span className="font-bold text-farmse-dark">₹50</span>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1">{t('checkout.delivered_to_doorstep')}</p>
+                                <p className="text-xs text-farmse-muted mt-0.5">{t('checkout.delivered_to_doorstep')}</p>
                                 {!farmerDeliveryAvailable && (
                                     <p className="text-xs text-red-500 mt-1 font-medium">
                                         {t('checkout.not_available_farm_distance', { distance: maxDistanceKm.toFixed(1) })}
@@ -340,57 +371,61 @@ export const Checkout: React.FC = () => {
                     </div>
 
                     {/* Address Preview */}
-                    <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl mt-2">
-                        <MapPin className="w-4 h-4 text-gray-500 mt-0.5" />
+                    <div className="flex items-start gap-3 p-3 rounded-card" style={{ background: 'var(--color-surface)' }}>
+                        <MapPin className="w-4 h-4 text-farmse-muted mt-0.5" strokeWidth={1.5} />
                         <div>
-                            <p className="text-xs font-bold text-gray-700">{t('checkout.your_location')}:</p>
-                            <p className="text-xs text-gray-600 mt-0.5 line-clamp-1">{user?.location}</p>
+                            <p className="text-xs font-semibold text-farmse-dark">{t('checkout.your_location')}:</p>
+                            <p className="text-xs text-farmse-muted mt-0.5 line-clamp-1">{user?.location}</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Bill Details */}
-                <div className="card-premium p-4 space-y-4">
-                    <h3 className="font-bold text-gray-900">{t('checkout.bill_details')}</h3>
-                    <div className="space-y-3 text-sm">
-                        <div className="flex justify-between text-gray-600">
+                <div className="card-premium p-4 space-y-3">
+                    <h3 className="font-bold text-farmse-dark" style={{ fontFamily: 'var(--font-display)' }}>{t('checkout.bill_details')}</h3>
+                    <div className="space-y-2.5 text-sm">
+                        <div className="flex justify-between text-farmse-muted">
                             <span>{t('checkout.item_total')}</span>
                             <span>₹{itemTotal.toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between text-gray-600">
+                        <div className="flex justify-between text-farmse-muted">
                             <span>{t('checkout.delivery_fee')}</span>
-                            <span className={deliveryFee === 0 ? 'text-green-600' : ''}>
+                            <span className={deliveryFee === 0 ? 'text-farmse-green font-semibold' : ''}>
                                 {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee.toFixed(2)}`}
                             </span>
                         </div>
-                        <div className="flex justify-between text-gray-600">
-                            <span className="flex items-center gap-1">{t('checkout.taxes')} <Info className="w-3 h-3" /></span>
+                        <div className="flex justify-between text-farmse-muted">
+                            <span className="flex items-center gap-1">{t('checkout.taxes')} <Info className="w-3 h-3" strokeWidth={1.5} /></span>
                             <span>₹{taxes.toFixed(2)}</span>
                         </div>
-                        <div className="border-t border-dashed border-gray-300 pt-3 flex justify-between font-bold text-lg text-gray-900">
-                            <span>{t('checkout.to_pay')}</span>
-                            <span>₹{finalTotal.toFixed(2)}</span>
+                        <div className="border-t border-dashed border-farmse-green/20 pt-3 flex justify-between font-bold text-lg text-farmse-dark">
+                            <span style={{ fontFamily: 'var(--font-display)' }}>{t('checkout.to_pay')}</span>
+                            <span style={{ color: 'var(--color-green)' }}>₹{finalTotal.toFixed(2)}</span>
                         </div>
                     </div>
                 </div>
 
-                {/* Safety Info */}
-                <div className="bg-green-50 text-green-800 p-4 rounded-xl text-xs flex gap-3 items-center">
-                    <Store className="w-5 h-5 flex-shrink-0" />
+                {/* Farmer Support Info */}
+                <div className="p-4 rounded-card text-xs flex gap-3 items-center"
+                    style={{ background: 'var(--color-green-light)', color: 'var(--color-green-dark)' }}>
+                    <Store className="w-5 h-5 flex-shrink-0" strokeWidth={1.5} />
                     <p>Your order supports local farmers and ensures 100% of the value reaches them.</p>
                 </div>
             </div>
 
             {/* Bottom Pay Button */}
-            <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 shadow-lg md:static md:shadow-none md:border-none md:bg-transparent">
-                <div className="max-w-2xl mx-auto">
+            <div className="fixed bottom-0 left-0 right-0 p-4 md:static md:p-0 safe-bottom"
+                style={{ background: 'rgba(249,246,240,0.95)', backdropFilter: 'blur(14px)', borderTop: '1px solid rgba(45,122,79,0.10)' }}>
+                <div className="max-w-2xl mx-auto md:border-none md:shadow-none">
                     <button
                         onClick={handleProceedToPayment}
-                        className="w-full py-4 bg-green-600 text-white rounded-xl font-bold shadow-lg hover:bg-green-700 active:scale-95 transition-all text-lg flex justify-between px-6 items-center"
+                        className="w-full py-4 text-white rounded-card font-bold shadow-card-hover hover:opacity-90 active:scale-[0.97] transition-all text-base flex justify-between px-6 items-center"
+                        style={{ background: 'linear-gradient(135deg, #2D7A4F 0%, #1A5C3A 100%)', fontFamily: 'var(--font-body)' }}
                     >
-                        <span>₹{finalTotal.toFixed(2)}</span>
-                        <span className="flex items-center gap-2 text-base font-semibold">
-                            {t('checkout.proceed_to_pay')} <span className="bg-green-500/50 rounded-lg p-1">→</span>
+                        <span className="text-lg" style={{ fontFamily: 'var(--font-display)' }}>₹{finalTotal.toFixed(2)}</span>
+                        <span className="flex items-center gap-2 text-sm font-semibold">
+                            {t('checkout.proceed_to_pay')}
+                            <span className="bg-white/20 rounded-card px-2 py-0.5">→</span>
                         </span>
                     </button>
                 </div>

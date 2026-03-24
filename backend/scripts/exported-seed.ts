@@ -1,18 +1,22 @@
 import { db } from '../src/db/index';
-import { users, products, orders, reviews, sessions, helpReports, chats, messages } from '../src/db/schema';
+import { users, products, orders, reviews, sessions, helpReports, chats, messages, marketPrices, cropSearches, harvests, preorders, retailerProfiles } from '../src/db/schema';
 
 async function seedFromExport() {
-    console.log('🌱 Seeding database from exported data...
-');
+    console.log('🌱 Seeding database from exported data...\n');
 
     try {
         // Clear existing data first (in correct order due to foreign keys)
         console.log('🧹 Clearing existing data...');
         await db.delete(messages);
+        await db.delete(chats);
+        await db.delete(preorders);
+        await db.delete(harvests);
+        await db.delete(retailerProfiles);
+        await db.delete(cropSearches);
+        await db.delete(marketPrices);
         await db.delete(reviews);
         await db.delete(helpReports);
         await db.delete(orders);
-        await db.delete(chats);
         await db.delete(products);
         await db.delete(sessions);
         await db.delete(users);

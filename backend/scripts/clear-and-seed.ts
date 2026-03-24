@@ -1,5 +1,5 @@
 import { db, pool } from '../src/db/index';
-import { users, products, orders, reviews, sessions, helpReports } from '../src/db/schema';
+import { users, products, orders, reviews, sessions, helpReports, chats, messages, marketPrices, cropSearches, harvests, preorders, retailerProfiles } from '../src/db/schema';
 import { hashPassword, generateId } from '../src/utils/auth';
 
 async function clearAndSeedDatabase() {
@@ -7,6 +7,13 @@ async function clearAndSeedDatabase() {
 
     try {
         // Delete all data from tables (in correct order due to foreign keys)
+        await db.delete(messages);
+        await db.delete(chats);
+        await db.delete(preorders);
+        await db.delete(harvests);
+        await db.delete(retailerProfiles);
+        await db.delete(cropSearches);
+        await db.delete(marketPrices);
         await db.delete(reviews);
         await db.delete(helpReports);
         await db.delete(orders);

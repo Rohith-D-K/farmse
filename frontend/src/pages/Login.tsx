@@ -38,7 +38,7 @@ export const Login: React.FC = () => {
         setLoading(true);
 
         try {
-            const user = await login(email, password);
+            const user = await login(email.trim(), password);
 
             // Redirect based on role
             if (user.role === 'admin') {
